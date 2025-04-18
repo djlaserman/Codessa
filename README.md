@@ -1,2 +1,2 @@
 # Codessa
-Codessa - Godess of code
+Codessa - The godess of code
