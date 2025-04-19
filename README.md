@@ -1,3 +1,83 @@
+# Codessa - AI Coding Assistant
+
+Codessa is a versatile VS Code extension that brings the power of various AI models directly into your development workflow. It supports multiple LLM providers including OpenAI, Ollama (local models), Google AI (Gemini), and Mistral AI.
+
+## Features
+
+- **Multi-Provider Support**: Use OpenAI, Ollama (local models), or other providers
+- **Powerful Tools**: File operations, documentation search, and more
+- **Code Generation**: Generate code based on natural language prompts
+- **Code Editing**: Modify existing code with AI assistance
+- **Custom Agents**: Create specialized agents for different tasks
+
+## Installation
+
+Install from the VS Code Marketplace or download from GitHub and follow these steps:
+
+1. Clone this repository
+2. Install dependencies: `npm install`
+3. Compile: `npm run compile`
+4. Press F5 in VS Code to launch in debug mode
+
+## Configuration
+
+Codessa requires configuration to connect to LLM providers:
+
+### OpenAI
+
+Set your API key in the extension settings:
+- **Settings** > **Codessa** > **Providers** > **OpenAI** > **API Key**
+
+### Ollama (Local Models)
+
+1. Install Ollama from [ollama.com](https://ollama.com/)
+2. Run `ollama serve` to start the server
+3. The default URL is `http://localhost:11434`
+
+## Usage
+
+Codessa provides several commands accessible from the Command Palette (Ctrl+Shift+P):
+
+- `Codessa: Run General Task with Agent...` - Run a task with AI
+- `Codessa: Edit Code with Agent...` - Edit selected code with AI
+- `Codessa: Generate Code with Agent...` - Generate new code using AI
+- `Codessa: Configure Settings...` - Access extension settings
+
+## Tools
+
+Codessa provides agents with access to tools:
+
+- **File Tools**: Read, write, and patch files
+- **Documentation Tools**: Search for answers about programming concepts
+
+## Customization
+
+Create custom system prompts for your agents:
+- **Settings** > **Codessa** > **System Prompts**
+
+## Troubleshooting
+
+See the [SETUP.md](SETUP.md) file for detailed troubleshooting instructions.
+
+## Development
+
+### Building and Running
+
+```bash
+npm install
+npm run compile
+```
+
+Press F5 in VS Code to launch with debugging.
+
+### Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
 Okay, creating a *complete*, *production-grade* VS Code extension with all the requested features is an incredibly complex task, far exceeding the scope of a single response. It involves deep integration with VS Code APIs, numerous external APIs (LLMs), complex state management, robust error handling, UI design, and significant testing. A real-world project like this would take a team weeks or months.
 
 However, I can provide a substantial, well-structured foundation covering the core architecture, key components, and implementations for several features. This will give you a strong starting point and demonstrate how the pieces fit together. It will include:

@@ -105,6 +105,50 @@
       {
         "command": "codessa.deleteAgentContext",
         "title": "Delete Agent"
+      },
+      {
+        "command": "codessa.openSettings",
+        "title": "Codessa: Open Settings"
+      },
+      {
+        "command": "codessa.showLogs",
+        "title": "Codessa: Show Logs"
+      },
+      {
+        "command": "codessa.addAgent",
+        "title": "Codessa: Create New Agent"
+      },
+      {
+        "command": "codessa.editAgent",
+        "title": "Codessa: Edit Agent",
+        "enablement": "false"
+      },
+      {
+        "command": "codessa.deleteAgent",
+        "title": "Codessa: Delete Agent",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "codessa.refreshAgentTree",
+        "title": "Codessa: Refresh Agents",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "codessa.openAgentDetailsPanel",
+        "title": "Codessa: Open Agent Details",
+        "enablement": "false"
+      },
+      {
+        "command": "codessa.openDashboard",
+        "title": "Codessa: Open Dashboard"
+      },
+      {
+        "command": "codessa.chatWithAgent",
+        "title": "Codessa: Chat with Agent"
+      },
+      {
+        "command": "codessa.showQuickActions",
+        "title": "Codessa: Show Quick Actions"
       }
     ],
     "viewsContainers": {
@@ -113,6 +157,11 @@
           "id": "codessa-view-container",
           "title": "Codessa",
           "icon": "$(hubot)"
+        },
+        {
+          "id": "codessa-sidebar",
+          "title": "Codessa",
+          "icon": "resources/codessa-icon.svg"
         }
       ]
     },
@@ -123,6 +172,20 @@
           "name": "Agents",
           "type": "tree",
           "contextualTitle": "Codessa Agents"
+        }
+      ],
+      "codessa-sidebar": [
+        {
+          "id": "codessaAgentView",
+          "name": "Agents",
+          "icon": "$(person)",
+          "contextualTitle": "Codessa Agents"
+        },
+        {
+          "id": "codessaToolsView",
+          "name": "Tools",
+          "icon": "$(tools)",
+          "contextualTitle": "Available Tools"
         }
       ]
     },
@@ -137,6 +200,16 @@
           "command": "codessa.addAgent",
           "when": "view == codessaAgentView",
           "group": "navigation@2"
+        },
+        {
+          "command": "codessa.refreshAgentTree",
+          "when": "view == codessaAgentView",
+          "group": "navigation"
+        },
+        {
+          "command": "codessa.addAgent",
+          "when": "view == codessaAgentView",
+          "group": "navigation"
         }
       ],
       "view/item/context": [
@@ -169,6 +242,21 @@
           "command": "codessa.deleteAgentContext",
           "when": "view == codessaAgentView && viewItem == agentItem",
           "group": "9_manage@1"
+        },
+        {
+          "command": "codessa.chatWithAgent",
+          "when": "view == codessaAgentView && viewItem =~ /agent|supervisorAgent/",
+          "group": "inline"
+        },
+        {
+          "command": "codessa.editAgent",
+          "when": "view == codessaAgentView && viewItem =~ /agent|supervisorAgent/",
+          "group": "1_modification"
+        },
+        {
+          "command": "codessa.deleteAgent",
+          "when": "view == codessaAgentView && viewItem =~ /agent|supervisorAgent/",
+          "group": "1_modification"
         }
       ],
       "editor/context": [
@@ -201,6 +289,20 @@
         {
           "command": "codessa.deleteAgentContext",
           "when": "false"
+        },
+        {
+          "command": "codessa.editAgent",
+          "when": "false"
+        },
+        {
+          "command": "codessa.openAgentDetailsPanel",
+          "when": "false"
+        }
+      ],
+      "statusBar/remoteIndicator": [
+        {
+          "command": "codessa.showQuickActions",
+          "when": "true"
         }
       ]
     },

@@ -3,6 +3,7 @@ import { llmService } from '../llm/llmService';
 import { promptManager } from '../agents/promptManager';
 import { LLMConfig, AgentConfig, getMaxToolIterations, getDefaultModelConfig } from '../config';
 import { ITool, ToolInput, ToolResult } from '../tools/tool';
+import { toolRegistry } from '../tools/toolRegistry';
 import * as vscode from 'vscode';
 
 export interface AgentRunInput {
@@ -65,6 +66,7 @@ export class Agent {
     readonly llmConfig?: LLMConfig;
     readonly tools: Map<string, ITool>;
     readonly isSupervisor: boolean;
+    readonly chainedAgentIds: string[];
 
     constructor(config: AgentConfig) {
         this.id = config.id;
@@ -72,14 +74,9 @@ export class Agent {
         this.description = config.description;
         this.systemPromptName = config.systemPromptName;
         this.llmConfig = config.llm;
-        this.tools = this.initializeTools(config.tools || []);
+        this.tools = toolRegistry.getToolsByIds(config.tools || []);
         this.isSupervisor = config.isSupervisor || false;
-    }
-
-    private initializeTools(toolIds: string[]): Map<string, ITool> {
-        // This would normally load tools from a registry based on IDs
-        // For now, just return an empty map as placeholder
-        return new Map<string, ITool>();
+        this.chainedAgentIds = config.chainedAgentIds || [];
     }
 
     async run(input: AgentRunInput, context: AgentContext = {}): Promise<AgentRunResult> {
