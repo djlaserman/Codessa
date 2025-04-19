@@ -1,4 +1,4 @@
-# Codessa - AI Coding Assistant
+# Codessa - The goddess of code
 
 Codessa is a versatile VS Code extension that brings the power of various AI models directly into your development workflow. It supports multiple LLM providers including OpenAI, Ollama (local models), Google AI (Gemini), and Mistral AI.
 
