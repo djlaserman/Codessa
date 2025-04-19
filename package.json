@@ -1,0 +1,413 @@
+{
+  "name": "codessa",
+  "displayName": "Codessa - AI Coding Assistant",
+  "description": "Codessa: Your agentic AI pair programmer with multi-provider support, advanced file manipulation, and customizable workflows.",
+  "version": "1.0.0",
+  "publisher": "your-publisher-name",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Machine Learning",
+    "Other"
+  ],
+  "keywords": [
+    "ai",
+    "llm",
+    "agent",
+    "coding assistant",
+    "openai",
+    "ollama",
+    "mistral",
+    "google",
+    "anthropic",
+    "refactor",
+    "debug",
+    "generate code"
+  ],
+  "icon": "images/icon.png",
+  "activationEvents": [
+    "onView:codessaAgentView"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "codessa.runTask",
+        "title": "Codessa: Run General Task with Agent..."
+      },
+      {
+        "command": "codessa.startChat",
+        "title": "Codessa: Start Chat with Agent..."
+      },
+      {
+        "command": "codessa.editCode",
+        "title": "Codessa: Edit Code with Agent..."
+      },
+      {
+        "command": "codessa.generateCode",
+        "title": "Codessa: Generate Code with Agent..."
+      },
+      {
+        "command": "codessa.runSupervisorTask",
+        "title": "Codessa: Run Multi-Agent Task..."
+      },
+      {
+        "command": "codessa.inlineAction",
+        "title": "Codessa: Generate/Edit Inline..."
+      },
+      {
+        "command": "codessa.refreshAgentView",
+        "title": "Refresh Agents",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "codessa.addAgent",
+        "title": "Codessa: Add New Agent..."
+      },
+      {
+        "command": "codessa.deleteAgent",
+        "title": "Codessa: Delete Agent..."
+      },
+      {
+        "command": "codessa.openSettings",
+        "title": "Codessa: Configure Settings..."
+      },
+      {
+        "command": "codessa.openChatView",
+        "title": "Codessa: Open Chat Panel"
+      },
+      {
+        "command": "codessa.openSettingsView",
+        "title": "Codessa: Open Settings Panel"
+      },
+      {
+        "command": "codessa.startChatWithAgentContext",
+        "title": "Start Chat"
+      },
+      {
+        "command": "codessa.runEditTaskWithAgentContext",
+        "title": "Edit Code..."
+      },
+      {
+        "command": "codessa.runGenerateTaskWithAgentContext",
+        "title": "Generate Code..."
+      },
+      {
+        "command": "codessa.runGeneralTaskWithAgentContext",
+        "title": "Run General Task..."
+      },
+      {
+        "command": "codessa.runSupervisorTaskContext",
+        "title": "Run Supervisor Task..."
+      },
+      {
+        "command": "codessa.deleteAgentContext",
+        "title": "Delete Agent"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "codessa-view-container",
+          "title": "Codessa",
+          "icon": "$(hubot)"
+        }
+      ]
+    },
+    "views": {
+      "codessa-view-container": [
+        {
+          "id": "codessaAgentView",
+          "name": "Agents",
+          "type": "tree",
+          "contextualTitle": "Codessa Agents"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "codessa.refreshAgentView",
+          "when": "view == codessaAgentView",
+          "group": "navigation@1"
+        },
+        {
+          "command": "codessa.addAgent",
+          "when": "view == codessaAgentView",
+          "group": "navigation@2"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "codessa.startChatWithAgentContext",
+          "when": "view == codessaAgentView && viewItem == agentItem && !viewItem.isSupervisor",
+          "group": "1_modes@1"
+        },
+        {
+          "command": "codessa.runEditTaskWithAgentContext",
+          "when": "view == codessaAgentView && viewItem == agentItem && !viewItem.isSupervisor",
+          "group": "1_modes@2"
+        },
+        {
+          "command": "codessa.runGenerateTaskWithAgentContext",
+          "when": "view == codessaAgentView && viewItem == agentItem && !viewItem.isSupervisor",
+          "group": "1_modes@3"
+        },
+        {
+          "command": "codessa.runGeneralTaskWithAgentContext",
+          "when": "view == codessaAgentView && viewItem == agentItem && !viewItem.isSupervisor",
+          "group": "1_modes@4"
+        },
+        {
+          "command": "codessa.runSupervisorTaskContext",
+          "when": "view == codessaAgentView && viewItem == agentItem && viewItem.isSupervisor",
+          "group": "1_modes@5"
+        },
+        {
+          "command": "codessa.deleteAgentContext",
+          "when": "view == codessaAgentView && viewItem == agentItem",
+          "group": "9_manage@1"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "codessa.inlineAction",
+          "group": "9_codessa@1"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "codessa.startChatWithAgentContext",
+          "when": "false"
+        },
+        {
+          "command": "codessa.runEditTaskWithAgentContext",
+          "when": "false"
+        },
+        {
+          "command": "codessa.runGenerateTaskWithAgentContext",
+          "when": "false"
+        },
+        {
+          "command": "codessa.runGeneralTaskWithAgentContext",
+          "when": "false"
+        },
+        {
+          "command": "codessa.runSupervisorTaskContext",
+          "when": "false"
+        },
+        {
+          "command": "codessa.deleteAgentContext",
+          "when": "false"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Codessa AI Assistant",
+      "properties": {
+        "codessa.logLevel": {
+          "type": "string",
+          "enum": [
+            "debug",
+            "info",
+            "warn",
+            "error"
+          ],
+          "default": "info",
+          "description": "Logging level for the Codessa extension."
+        },
+        "codessa.maxToolIterations": {
+          "type": "number",
+          "default": 5,
+          "minimum": 1,
+          "maximum": 20,
+          "description": "Maximum number of sequential tool calls an agent can make in a single run."
+        },
+        "codessa.defaultModel": {
+          "type": "object",
+          "properties": {
+            "provider": {
+              "type": "string",
+              "description": "Default provider ID (e.g., 'openai', 'ollama', 'anthropic')"
+            },
+            "modelId": {
+              "type": "string",
+              "description": "Default model ID for the provider"
+            }
+          },
+          "default": {
+            "provider": "ollama",
+            "modelId": "llama3"
+          },
+          "description": "Default AI provider and model if not specified by an agent."
+        },
+        "codessa.providers.openai.apiKey": {
+          "type": "string",
+          "description": "API Key for OpenAI.",
+          "default": "",
+          "markdownDescription": "Required for OpenAI models. Store securely (e.g., environment variable or secret storage)."
+        },
+        "codessa.providers.openai.baseUrl": {
+          "type": "string",
+          "description": "Optional Base URL for OpenAI compatible APIs (e.g., Azure, local proxy).",
+          "default": ""
+        },
+        "codessa.providers.googleai.apiKey": {
+          "type": "string",
+          "description": "API Key for Google AI (Gemini).",
+          "default": "",
+          "markdownDescription": "Required for Google Gemini models."
+        },
+        "codessa.providers.mistralai.apiKey": {
+          "type": "string",
+          "description": "API Key for Mistral AI.",
+          "default": "",
+          "markdownDescription": "Required for Mistral AI platform models."
+        },
+        "codessa.providers.anthropic.apiKey": {
+          "type": "string",
+          "description": "API Key for Anthropic (Claude).",
+          "default": "",
+          "markdownDescription": "Required for Anthropic Claude models."
+        },
+        "codessa.providers.ollama.baseUrl": {
+          "type": "string",
+          "description": "Base URL for your local Ollama instance.",
+          "default": "http://localhost:11434"
+        },
+        "codessa.providers.lmstudio.baseUrl": {
+          "type": "string",
+          "description": "Base URL for your local LM Studio server (OpenAI compatible endpoint).",
+          "default": "http://localhost:1234/v1"
+        },
+        "codessa.systemPrompts": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {},
+          "description": "Custom system prompts. Key is the prompt name, value is the prompt text. Use {variable} for placeholders.",
+          "markdownDescription": "Define reusable system prompts for your agents. See default prompts for examples and available variables like `{AVAILABLE_TOOLS_LIST}`, `{USER_REQUEST}` etc."
+        },
+        "codessa.agents": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Unique identifier for the agent."
+              },
+              "name": {
+                "type": "string",
+                "description": "Display name for the agent."
+              },
+              "description": {
+                "type": "string",
+                "description": "Optional description of the agent's purpose."
+              },
+              "systemPromptName": {
+                "type": "string",
+                "description": "Name of the system prompt (from codessa.systemPrompts or defaults) to use."
+              },
+              "llm": {
+                "type": "object",
+                "properties": {
+                  "provider": {
+                    "type": "string",
+                    "description": "LLM Provider ID (e.g., 'openai', 'ollama'). Uses default if omitted."
+                  },
+                  "modelId": {
+                    "type": "string",
+                    "description": "Model ID for the provider. Uses provider default if omitted."
+                  },
+                  "options": {
+                    "type": "object",
+                    "additionalProperties": true,
+                    "description": "Provider-specific options (e.g., temperature, max_tokens)."
+                  }
+                },
+                "description": "Specific LLM configuration for this agent. Overrides global default."
+              },
+              "tools": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "file",
+                    "docs",
+                    "debug"
+                  ]
+                },
+                "default": [
+                  "file",
+                  "docs"
+                ],
+                "description": "List of tool IDs this agent is allowed to use."
+              },
+              "isSupervisor": {
+                "type": "boolean",
+                "default": false,
+                "description": "Set to true if this agent coordinates other agents."
+              },
+              "chainedAgentIds": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "For supervisor agents, list the IDs of agents they can delegate tasks to."
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "systemPromptName"
+            ]
+          },
+          "default": [],
+          "description": "Configurations for individual AI agents."
+        },
+        "codessa.promptVariables": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {},
+          "description": "Global variables/placeholders available in all system prompts (e.g., {USERNAME}: 'Coder')."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/diff": "^5.0.9",
+    "@types/mocha": "^10.0.6",
+    "@types/node": "18.x",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.19.1",
+    "@typescript-eslint/parser": "^6.19.1",
+    "@vscode/test-electron": "^2.3.9",
+    "eslint": "^8.56.0",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.17.1",
+    "@google/generative-ai": "^0.3.0",
+    "@mistralai/mistralai": "^0.1.3",
+    "@types/diff": "^5.0.9",
+    "@types/uuid": "^9.0.8",
+    "axios": "^1.6.7",
+    "codessa": "file:",
+    "diff": "^5.1.0",
+    "openai": "^4.29.0",
+    "uuid": "^9.0.1"
+  }
+}
