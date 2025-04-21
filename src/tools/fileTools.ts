@@ -13,7 +13,7 @@ export class FileSystemTool implements ITool {
     readonly name = 'File System Operations';
     readonly description = 'Provides actions to read, write, diff, and patch files in the workspace. Paths can be relative to the workspace root or absolute.';
 
-    private actions: { [key: string]: ITool } = {
+    readonly actions: { [key: string]: ITool } = {
         'readFile': new ReadFileTool(),
         'writeFile': new WriteFileTool(),
         'createDiff': new CreateDiffTool(),
@@ -22,20 +22,20 @@ export class FileSystemTool implements ITool {
 
     async execute(input: ToolInput, context?: AgentContext): Promise<ToolResult> {
         const actionId = input.action as string;
-        
+
         if (!actionId) {
-            return { 
-                success: false, 
-                error: `Action parameter is required. Available actions: ${Object.keys(this.actions).join(', ')}` 
+            return {
+                success: false,
+                error: `Action parameter is required. Available actions: ${Object.keys(this.actions).join(', ')}`
             };
         }
-        
+
         const actionTool = this.actions[actionId];
 
         if (!actionTool) {
-            return { 
-                success: false, 
-                error: `Unknown file system action: ${actionId}. Available actions: ${Object.keys(this.actions).join(', ')}` 
+            return {
+                success: false,
+                error: `Unknown file system action: ${actionId}. Available actions: ${Object.keys(this.actions).join(', ')}`
             };
         }
 
@@ -70,9 +70,9 @@ export class ReadFileTool implements ITool {
         required: ['filePath']
     };
 
-    async execute(input: ToolInput, context?: AgentContext): Promise<ToolResult> {
+    async execute(input: ToolInput, _context?: AgentContext): Promise<ToolResult> {
         const filePath = input.filePath as string;
-        
+
         if (!filePath) {
             return { success: false, error: "'filePath' is required." };
         }
@@ -90,11 +90,11 @@ export class ReadFileTool implements ITool {
             return { success: true, output: fileContent };
         } catch (error: any) {
             logger.error(`Error reading file ${fileUri.fsPath}:`, error);
-            
+
             if (error instanceof vscode.FileSystemError && error.code === 'FileNotFound') {
                 return { success: false, error: `File not found: ${filePath}` };
             }
-            
+
             return { success: false, error: `Failed to read file: ${error.message || error}` };
         }
     }
@@ -102,7 +102,7 @@ export class ReadFileTool implements ITool {
     private resolveWorkspacePath(filePath: string): vscode.Uri | undefined {
         if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
             const workspaceRoot = vscode.workspace.workspaceFolders[0].uri;
-            
+
             // Check if it's already absolute
             try {
                 const uri = vscode.Uri.parse(filePath);
@@ -110,14 +110,14 @@ export class ReadFileTool implements ITool {
             } catch (e) {
                 // Ignore parsing errors, treat as relative
             }
-            
+
             // If relative, join with workspace root
             return vscode.Uri.joinPath(workspaceRoot, filePath);
         } else if (vscode.Uri.parse(filePath).scheme) {
             // Absolute path outside workspace
             return vscode.Uri.parse(filePath);
         }
-        
+
         // Relative path but no workspace open
         logger.warn(`Cannot resolve relative path "${filePath}" without an open workspace folder.`);
         return undefined;
@@ -137,14 +137,14 @@ export class WriteFileTool implements ITool {
         required: ['filePath', 'content']
     };
 
-    async execute(input: ToolInput, context?: AgentContext): Promise<ToolResult> {
+    async execute(input: ToolInput, _context?: AgentContext): Promise<ToolResult> {
         const filePath = input.filePath as string;
         const content = input.content as string;
 
         if (!filePath || content === undefined) {
             return { success: false, error: "'filePath' and 'content' are required." };
         }
-        
+
         if (typeof content !== 'string') {
             return { success: false, error: "'content' must be a string." };
         }
@@ -169,7 +169,7 @@ export class WriteFileTool implements ITool {
     private resolveWorkspacePath(filePath: string): vscode.Uri | undefined {
         if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
             const workspaceRoot = vscode.workspace.workspaceFolders[0].uri;
-            
+
             // Check if it's already absolute
             try {
                 const uri = vscode.Uri.parse(filePath);
@@ -177,14 +177,14 @@ export class WriteFileTool implements ITool {
             } catch (e) {
                 // Ignore parsing errors, treat as relative
             }
-            
+
             // If relative, join with workspace root
             return vscode.Uri.joinPath(workspaceRoot, filePath);
         } else if (vscode.Uri.parse(filePath).scheme) {
             // Absolute path outside workspace
             return vscode.Uri.parse(filePath);
         }
-        
+
         // Relative path but no workspace open
         logger.warn(`Cannot resolve relative path "${filePath}" without an open workspace folder.`);
         return undefined;
@@ -204,7 +204,7 @@ export class CreateDiffTool implements ITool {
         required: ['filePath', 'newContent']
     };
 
-    async execute(input: ToolInput, context?: AgentContext): Promise<ToolResult> {
+    async execute(input: ToolInput, _context?: AgentContext): Promise<ToolResult> {
         const filePath = input.filePath as string;
         const newContent = input.newContent as string;
 
@@ -246,7 +246,7 @@ export class CreateDiffTool implements ITool {
     private resolveWorkspacePath(filePath: string): vscode.Uri | undefined {
         if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
             const workspaceRoot = vscode.workspace.workspaceFolders[0].uri;
-            
+
             // Check if it's already absolute
             try {
                 const uri = vscode.Uri.parse(filePath);
@@ -254,14 +254,14 @@ export class CreateDiffTool implements ITool {
             } catch (e) {
                 // Ignore parsing errors, treat as relative
             }
-            
+
             // If relative, join with workspace root
             return vscode.Uri.joinPath(workspaceRoot, filePath);
         } else if (vscode.Uri.parse(filePath).scheme) {
             // Absolute path outside workspace
             return vscode.Uri.parse(filePath);
         }
-        
+
         // Relative path but no workspace open
         logger.warn(`Cannot resolve relative path "${filePath}" without an open workspace folder.`);
         return undefined;
@@ -281,7 +281,7 @@ export class ApplyDiffTool implements ITool {
         required: ['filePath', 'patch']
     };
 
-    async execute(input: ToolInput, context?: AgentContext): Promise<ToolResult> {
+    async execute(input: ToolInput, _context?: AgentContext): Promise<ToolResult> {
         const filePath = input.filePath as string;
         const patch = input.patch as string;
 
@@ -315,9 +315,9 @@ export class ApplyDiffTool implements ITool {
 
             if (patchedContent === false) {
                 // Patch failed to apply
-                return { 
-                    success: false, 
-                    error: `Patch could not be applied cleanly to ${filePath}. The file content may have changed, or the patch is invalid/malformed.` 
+                return {
+                    success: false,
+                    error: `Patch could not be applied cleanly to ${filePath}. The file content may have changed, or the patch is invalid/malformed.`
                 };
             }
 
@@ -338,7 +338,7 @@ export class ApplyDiffTool implements ITool {
     private resolveWorkspacePath(filePath: string): vscode.Uri | undefined {
         if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
             const workspaceRoot = vscode.workspace.workspaceFolders[0].uri;
-            
+
             // Check if it's already absolute
             try {
                 const uri = vscode.Uri.parse(filePath);
@@ -346,14 +346,14 @@ export class ApplyDiffTool implements ITool {
             } catch (e) {
                 // Ignore parsing errors, treat as relative
             }
-            
+
             // If relative, join with workspace root
             return vscode.Uri.joinPath(workspaceRoot, filePath);
         } else if (vscode.Uri.parse(filePath).scheme) {
             // Absolute path outside workspace
             return vscode.Uri.parse(filePath);
         }
-        
+
         // Relative path but no workspace open
         logger.warn(`Cannot resolve relative path "${filePath}" without an open workspace folder.`);
         return undefined;

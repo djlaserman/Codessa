@@ -24,27 +24,27 @@ export interface AgentContext {
         selection?: vscode.Selection;
         workspaceFolders?: readonly vscode.WorkspaceFolder[];
     };
-    
+
     /**
      * Tools available to the agent
      */
     tools?: Map<string, ITool>;
-    
+
     /**
      * LLM configuration for this agent
      */
     llmConfig?: LLMConfig;
-    
+
     /**
      * System prompt name
      */
     systemPromptName?: string;
-    
+
     /**
      * Additional context variables
      */
     variables?: Record<string, any>;
-    
+
     /**
      * Cancellation token for stopping long-running operations
      */
@@ -68,6 +68,14 @@ export class Agent {
     readonly isSupervisor: boolean;
     readonly chainedAgentIds: string[];
 
+    // Default LLM parameters for this agent
+    private readonly defaultLLMParams = {
+        temperature: 0.7,
+        maxTokens: 1000,
+        stopSequences: [],
+        mode: 'chat' as 'chat' | 'task' | 'edit' | 'generate' | 'inline'
+    };
+
     constructor(config: AgentConfig) {
         this.id = config.id;
         this.name = config.name;
@@ -77,6 +85,51 @@ export class Agent {
         this.tools = toolRegistry.getToolsByIds(config.tools || []);
         this.isSupervisor = config.isSupervisor || false;
         this.chainedAgentIds = config.chainedAgentIds || [];
+    }
+
+    /**
+     * Get the default LLM parameters for this agent
+     */
+    getDefaultLLMParams(): any {
+        return {
+            ...this.defaultLLMParams,
+            modelId: this.llmConfig?.modelId || getDefaultModelConfig().modelId
+        };
+    }
+
+    /**
+     * Generate a response using the agent's LLM
+     * @param prompt The prompt to send to the LLM
+     * @param params Additional LLM parameters
+     * @param cancellationToken Optional cancellation token
+     * @returns The generated text
+     */
+    async generate(prompt: string, params: any = {}, cancellationToken?: vscode.CancellationToken): Promise<string> {
+        const provider = llmService.getProviderForConfig(this.llmConfig || getDefaultModelConfig());
+        if (!provider) {
+            throw new Error(`No provider found for agent '${this.name}'.`);
+        }
+        if (!provider.isConfigured()) {
+            throw new Error(`Provider for agent '${this.name}' is not configured.`);
+        }
+
+        // Get system prompt
+        const systemPrompt = promptManager.getSystemPrompt(this.systemPromptName, {});
+        if (!systemPrompt) {
+            throw new Error(`System prompt '${this.systemPromptName}' not found for agent '${this.name}'.`);
+        }
+
+        // Merge parameters
+        const mergedParams = {
+            prompt,
+            systemPrompt,
+            modelId: this.llmConfig?.modelId || getDefaultModelConfig().modelId,
+            ...params
+        };
+
+        // Generate response
+        const response = await provider.generate(mergedParams, cancellationToken);
+        return response.content;
     }
 
     async run(input: AgentRunInput, context: AgentContext = {}): Promise<AgentRunResult> {
@@ -126,7 +179,7 @@ export class Agent {
             }, context.cancellationToken, this.tools);
 
             assistantResponseContent = response.content;
-            
+
             // Handle tool calls
             if (response.toolCallRequest) {
                 toolCallRequest = {
@@ -145,17 +198,17 @@ export class Agent {
                     logger.error(`Tool '${toolId}' not found for agent '${this.name}'.`);
                     return { success: false, error: `Tool '${toolId}' not found.` };
                 }
-                
+
                 // Prepare the tool input
-                const toolInput: ToolInput = { 
-                    ...toolCallRequest.arguments 
+                const toolInput: ToolInput = {
+                    ...toolCallRequest.arguments
                 };
-                
+
                 // Add action ID for the filesystem tool which expects it
                 if (toolId === 'file' && actionId) {
                     toolInput.action = actionId;
                 }
-                
+
                 const toolResult = await tool.execute(toolInput, context);
                 toolResultsLog.push(toolResult);
                 if (toolResult.error) {

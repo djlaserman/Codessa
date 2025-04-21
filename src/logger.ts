@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
 import { getLogLevel } from './config';
 
-// Define log levels
-type LogLevel = 'debug' | 'info' | 'warn' | 'error';
-const LOG_LEVELS: Record<LogLevel, number> = {
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+
+const LOG_LEVEL_PRIORITY: Record<LogLevel, number> = {
     debug: 0,
     info: 1,
     warn: 2,
@@ -12,7 +12,7 @@ const LOG_LEVELS: Record<LogLevel, number> = {
 
 class Logger {
     private outputChannel: vscode.OutputChannel;
-    private currentLogLevel: number = LOG_LEVELS.info;
+    private currentLogLevel: LogLevel = 'info';
 
     constructor() {
         this.outputChannel = vscode.window.createOutputChannel('Codessa');
@@ -27,48 +27,83 @@ class Logger {
     }
 
     private updateLogLevel(): void {
-        const configLevel = getLogLevel();
-        this.currentLogLevel = LOG_LEVELS[configLevel as LogLevel] ?? LOG_LEVELS.info;
+        this.currentLogLevel = getLogLevel() as LogLevel;
+        this.debug(`Log level set to: ${this.currentLogLevel}`);
     }
 
-    private log(level: LogLevel, message: string, ...args: any[]): void {
-        if (LOG_LEVELS[level] < this.currentLogLevel) {
-            return;
-        }
+    private shouldLog(level: LogLevel): boolean {
+        return LOG_LEVEL_PRIORITY[level] >= LOG_LEVEL_PRIORITY[this.currentLogLevel];
+    }
 
+    private formatMessage(level: LogLevel, message: string, details?: any): string {
         const timestamp = new Date().toISOString();
-        const formattedArgs = args.length > 0
-            ? args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : arg).join(' ')
-            : '';
-        
-        const logMessage = `[${timestamp}] [${level.toUpperCase()}] ${message} ${formattedArgs}`;
-        
-        this.outputChannel.appendLine(logMessage);
-        
-        // For errors, also write to developer console if available
-        if (level === 'error' && typeof vscode.window.showErrorMessage === 'function') {
-            vscode.window.showErrorMessage(`[Codessa] ${message}`);
+        const levelPadded = level.toUpperCase().padEnd(5);
+        let formattedMessage = `[${timestamp}] ${levelPadded} ${message}`;
+
+        if (details) {
+            if (details instanceof Error) {
+                formattedMessage += `\n  Stack: ${details.stack || 'No stack trace available'}`;
+            } else if (typeof details === 'object') {
+                try {
+                    formattedMessage += `\n  Details: ${JSON.stringify(details, null, 2)}`;
+                } catch (e) {
+                    formattedMessage += `\n  Details: [Object cannot be stringified]`;
+                }
+            } else {
+                formattedMessage += `\n  Details: ${details}`;
+            }
+        }
+
+        return formattedMessage;
+    }
+
+    private log(level: LogLevel, message: string, details?: any): void {
+        if (this.shouldLog(level)) {
+            const formattedMessage = this.formatMessage(level, message, details);
+            this.outputChannel.appendLine(formattedMessage);
+
+            // For errors, also show notification
+            if (level === 'error') {
+                vscode.window.showErrorMessage(message);
+            }
         }
     }
 
-    debug(message: string, ...args: any[]): void {
-        this.log('debug', message, ...args);
+    debug(message: string, details?: any): void {
+        this.log('debug', message, details);
     }
 
-    info(message: string, ...args: any[]): void {
-        this.log('info', message, ...args);
+    info(message: string, details?: any): void {
+        this.log('info', message, details);
     }
 
-    warn(message: string, ...args: any[]): void {
-        this.log('warn', message, ...args);
+    warn(message: string, details?: any): void {
+        this.log('warn', message, details);
     }
 
-    error(message: string, ...args: any[]): void {
-        this.log('error', message, ...args);
+    error(message: string, details?: any): void {
+        this.log('error', message, details);
     }
 
+    /**
+     * Show the output channel
+     */
     show(): void {
         this.outputChannel.show();
+    }
+
+    /**
+     * Clear the output channel
+     */
+    clear(): void {
+        this.outputChannel.clear();
+    }
+
+    /**
+     * Dispose the output channel
+     */
+    dispose(): void {
+        this.outputChannel.dispose();
     }
 }
 

@@ -22,15 +22,15 @@ export class DocumentationTool implements ITool {
     };
 
     // Configuration for the LLM to use for research
-    private researchLLMConfig: LLMConfig = { 
-        provider: 'openai', 
+    private researchLLMConfig: LLMConfig = {
+        provider: 'openai',
         modelId: 'gpt-3.5-turbo',
         options: { temperature: 0.3 }
     };
 
-    async execute(input: ToolInput, context?: AgentContext): Promise<ToolResult> {
+    async execute(input: ToolInput, _context?: AgentContext): Promise<ToolResult> {
         const query = input.query as string;
-        
+
         if (!query) {
             return { success: false, error: "'query' parameter is required." };
         }
@@ -47,7 +47,7 @@ export class DocumentationTool implements ITool {
         }
 
         try {
-            const systemPrompt = `You are a documentation researcher. Your task is to answer the following query with accurate, technical information. 
+            const systemPrompt = `You are a documentation researcher. Your task is to answer the following query with accurate, technical information.
 Be concise but thorough. Include code examples where appropriate. If you don't know the answer, say so instead of making things up.
 Only answer what is asked - do not try to provide additional information beyond the scope of the query.`;
 

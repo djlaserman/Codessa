@@ -4,6 +4,7 @@ import { logger } from '../logger';
 import { llmService } from '../llm/llmService';
 import { agentManager } from '../agents/agentManager';
 import { toolRegistry } from '../tools/toolRegistry';
+import { ProviderSettingsPanel } from './providerSettingsPanel';
 
 /**
  * A dashboard webview that shows activity, analytics, and health status
@@ -11,12 +12,13 @@ import { toolRegistry } from '../tools/toolRegistry';
 export class DashboardPanel {
     public static currentPanel: DashboardPanel | undefined;
     private static readonly viewType = 'codessaDashboard';
-    
+
     private readonly _panel: vscode.WebviewPanel;
     private readonly _extensionUri: vscode.Uri;
+    private readonly _context: vscode.ExtensionContext;
     private _disposables: vscode.Disposable[] = [];
     private _refreshInterval: NodeJS.Timer | undefined;
-    
+
     /**
      * Create or show a dashboard panel
      */
@@ -24,57 +26,67 @@ export class DashboardPanel {
         extensionUri: vscode.Uri,
         context: vscode.ExtensionContext
     ): DashboardPanel {
+        logger.info('Creating or showing dashboard panel...');
         const column = vscode.window.activeTextEditor
             ? vscode.window.activeTextEditor.viewColumn
             : undefined;
-            
+
         // If we already have a panel, show it
         if (DashboardPanel.currentPanel) {
             DashboardPanel.currentPanel._panel.reveal(column);
             return DashboardPanel.currentPanel;
         }
-        
+
         // Otherwise, create a new panel
-        const panel = vscode.window.createWebviewPanel(
-            DashboardPanel.viewType,
-            'Codessa Dashboard',
-            column || vscode.ViewColumn.One,
-            {
-                enableScripts: true,
-                retainContextWhenHidden: true,
-                localResourceRoots: [
-                    vscode.Uri.joinPath(extensionUri, 'media'),
-                    vscode.Uri.joinPath(extensionUri, 'resources')
-                ]
-            }
-        );
-        
-        const dashboardPanel = new DashboardPanel(panel, extensionUri);
-        
-        // Register panel with extension context
-        context.subscriptions.push(panel);
-        
-        return dashboardPanel;
+        logger.info('Creating new dashboard panel...');
+        try {
+            const panel = vscode.window.createWebviewPanel(
+                DashboardPanel.viewType,
+                'Codessa Dashboard',
+                column || vscode.ViewColumn.One,
+                {
+                    enableScripts: true,
+                    retainContextWhenHidden: true,
+                    localResourceRoots: [
+                        vscode.Uri.joinPath(extensionUri, 'media'),
+                        vscode.Uri.joinPath(extensionUri, 'resources')
+                    ]
+                }
+            );
+            logger.info('Dashboard panel created successfully.');
+            const dashboardPanel = new DashboardPanel(panel, extensionUri, context);
+
+            // Register panel with extension context
+            context.subscriptions.push(panel);
+
+            return dashboardPanel;
+        } catch (error) {
+            logger.error('Error creating dashboard panel:', error);
+            vscode.window.showErrorMessage('Failed to create dashboard panel. Check logs for details.');
+            throw error;
+        }
     }
-    
+
     private constructor(
         panel: vscode.WebviewPanel,
-        extensionUri: vscode.Uri
+        extensionUri: vscode.Uri,
+        context: vscode.ExtensionContext
     ) {
         this._panel = panel;
         this._extensionUri = extensionUri;
-        
+        this._context = context;
+
         // Set initial HTML content
         this._update();
-        
+
         // Set up auto-refresh (every 30 seconds)
         this._refreshInterval = setInterval(() => {
             this._update();
         }, 30000);
-        
+
         // Handle panel disposal
         this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
-        
+
         // Handle messages from the webview
         this._panel.webview.onDidReceiveMessage(
             async (message) => {
@@ -85,9 +97,23 @@ export class DashboardPanel {
                     case 'openSettings':
                         vscode.commands.executeCommand('codessa.openSettings');
                         break;
+                    case 'openProviderSettings':
+                        if (message.providerId) {
+                            // Open settings for a specific provider
+                            const provider = llmService.getProvider(message.providerId);
+                            if (provider) {
+                                ProviderSettingsPanel.createOrShow(this._extensionUri, message.providerId, this._context);
+                            } else {
+                                vscode.window.showErrorMessage(`Provider ${message.providerId} not found.`);
+                            }
+                        } else {
+                            // Open provider selection dialog
+                            vscode.commands.executeCommand('codessa.openProviderSettings');
+                        }
+                        break;
                     case 'openAgent':
                         vscode.commands.executeCommand(
-                            'codessa.openAgentDetailsPanel', 
+                            'codessa.openAgentDetailsPanel',
                             message.agentId
                         );
                         break;
@@ -102,25 +128,35 @@ export class DashboardPanel {
             null,
             this._disposables
         );
-        
+
         // Cache the current panel
         DashboardPanel.currentPanel = this;
     }
-    
+
     /**
      * Update dashboard content
      */
     private async _update() {
-        const webview = this._panel.webview;
-        this._panel.title = 'Codessa Dashboard';
-        
-        // Gather data for the dashboard
-        const dashboardData = await this._getDashboardData();
-        
-        // Update HTML content
-        webview.html = this._getWebviewContent(webview, dashboardData);
+        logger.info('Updating dashboard content...');
+        try {
+            const webview = this._panel.webview;
+            this._panel.title = 'Codessa Dashboard';
+
+            // Gather data for the dashboard
+            logger.info('Gathering dashboard data...');
+            const dashboardData = await this._getDashboardData();
+            logger.info('Dashboard data gathered successfully.');
+
+            // Update HTML content
+            logger.info('Generating webview HTML content...');
+            webview.html = this._getWebviewContent(webview, dashboardData);
+            logger.info('Dashboard content updated successfully.');
+        } catch (error) {
+            logger.error('Error updating dashboard content:', error);
+            vscode.window.showErrorMessage('Failed to update dashboard content. Check logs for details.');
+        }
     }
-    
+
     /**
      * Gather data for the dashboard
      */
@@ -137,16 +173,16 @@ export class DashboardPanel {
                     isDefault: false, // Will be set below if applicable
                 };
             });
-            
+
             // Get default provider
             const defaultProvider = llmService.getDefaultProvider();
             if (defaultProvider) {
-                const defaultProviderStatus = providerStatus.find(p => p.id === defaultProvider.id);
+                const defaultProviderStatus = providerStatus.find(p => p.id === defaultProvider.providerId);
                 if (defaultProviderStatus) {
                     defaultProviderStatus.isDefault = true;
                 }
             }
-            
+
             // Get agents
             const agents = agentManager.getAllAgents().map(agent => ({
                 id: agent.id,
@@ -157,14 +193,14 @@ export class DashboardPanel {
                 provider: agent.llmConfig?.provider || 'unknown',
                 model: agent.llmConfig?.modelId || 'unknown'
             }));
-            
+
             // Get tools
             const tools = toolRegistry.getAllTools().map(tool => ({
                 id: tool.id,
                 name: tool.name || tool.id,
                 description: tool.description || ''
             }));
-            
+
             // Return combined data
             return {
                 providers: {
@@ -185,7 +221,7 @@ export class DashboardPanel {
             };
         } catch (error) {
             logger.error('Error gathering dashboard data:', error);
-            
+
             // Return minimal data
             return {
                 error: `Failed to gather data: ${error}`,
@@ -193,25 +229,33 @@ export class DashboardPanel {
             };
         }
     }
-    
+
     /**
      * Generate the webview HTML content
      */
     private _getWebviewContent(webview: vscode.Webview, data: any): string {
-        const scriptUri = webview.asWebviewUri(
-            vscode.Uri.joinPath(this._extensionUri, 'media', 'dashboard.js')
-        );
-        
-        const styleUri = webview.asWebviewUri(
-            vscode.Uri.joinPath(this._extensionUri, 'media', 'dashboard.css')
-        );
-        
-        const logoUri = webview.asWebviewUri(
-            vscode.Uri.joinPath(this._extensionUri, 'resources', 'codessa-logo.png')
-        );
-        
-        const nonce = getNonce();
-        
+        logger.info('Generating webview HTML content...');
+        try {
+            // Get resource URIs
+            logger.info('Getting resource URIs...');
+            const scriptUri = webview.asWebviewUri(
+                vscode.Uri.joinPath(this._extensionUri, 'media', 'dashboard.js')
+            );
+            logger.info(`Script URI: ${scriptUri}`);
+
+            const styleUri = webview.asWebviewUri(
+                vscode.Uri.joinPath(this._extensionUri, 'media', 'dashboard.css')
+            );
+            logger.info(`Style URI: ${styleUri}`);
+
+            const logoUri = webview.asWebviewUri(
+                vscode.Uri.joinPath(this._extensionUri, 'resources', 'codessa-logo.png')
+            );
+            logger.info(`Logo URI: ${logoUri}`);
+
+            const nonce = getNonce();
+            logger.info('Resource URIs generated successfully.');
+
         return `<!DOCTYPE html>
             <html lang="en">
             <head>
@@ -219,7 +263,7 @@ export class DashboardPanel {
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <title>Codessa Dashboard</title>
                 <link rel="stylesheet" href="${styleUri}">
-                <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource} https:; script-src 'nonce-${nonce}'; style-src ${webview.cspSource}; font-src ${webview.cspSource};">
+                <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource} https:; script-src 'nonce-${nonce}'; style-src ${webview.cspSource} 'unsafe-inline'; font-src ${webview.cspSource};">
             </head>
             <body>
                 <div class="dashboard-container">
@@ -230,17 +274,17 @@ export class DashboardPanel {
                         </div>
                         <div class="actions">
                             <button id="btn-refresh" title="Refresh dashboard" class="icon-button">
-                                <span class="codicon codicon-refresh"></span>
+                                <span style="font-family: 'codicon'; font-size: 16px;">&#xeb37;</span> Refresh
                             </button>
                             <button id="btn-settings" title="Open settings" class="icon-button">
-                                <span class="codicon codicon-gear"></span>
+                                <span style="font-family: 'codicon'; font-size: 16px;">&#xeb52;</span> Settings
                             </button>
                             <button id="btn-logs" title="Show logs" class="icon-button">
-                                <span class="codicon codicon-output"></span>
+                                <span style="font-family: 'codicon'; font-size: 16px;">&#xea7f;</span> Logs
                             </button>
                         </div>
                     </header>
-                    
+
                     <div class="dashboard-content">
                         <div class="dashboard-row">
                             <div class="dashboard-card status-card">
@@ -265,22 +309,22 @@ export class DashboardPanel {
                                 <p class="last-updated">Last updated: <span id="timestamp"></span></p>
                             </div>
                         </div>
-                        
+
                         <div class="dashboard-row">
                             <div class="dashboard-card">
                                 <h2>Agents</h2>
                                 <div class="card-actions">
-                                    <button id="btn-create-agent" class="btn primary">Create Agent</button>
+                                    <button id="btn-create-agent" class="btn primary"><span style="font-family: 'codicon'; font-size: 14px;">&#xea60;</span> Create Agent</button>
                                 </div>
                                 <div class="agents-list" id="agents-list">
                                     <!-- Agents will be inserted here by JavaScript -->
                                     ${data.error ? `<div class="error-message">${data.error}</div>` : ''}
-                                    ${!data.error && (!data.agents || data.agents.total === 0) ? 
+                                    ${!data.error && (!data.agents || data.agents.total === 0) ?
                                         `<div class="empty-message">No agents configured yet. Create your first agent to get started.</div>` : ''}
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div class="dashboard-row">
                             <div class="dashboard-card">
                                 <h2>LLM Providers</h2>
@@ -288,7 +332,7 @@ export class DashboardPanel {
                                     <!-- Providers will be inserted here by JavaScript -->
                                 </div>
                             </div>
-                            
+
                             <div class="dashboard-card">
                                 <h2>Available Tools</h2>
                                 <div class="tools-list" id="tools-list">
@@ -298,7 +342,7 @@ export class DashboardPanel {
                         </div>
                     </div>
                 </div>
-                
+
                 <script nonce="${nonce}">
                     // Dashboard data
                     const dashboardData = ${JSON.stringify(data)};
@@ -306,21 +350,36 @@ export class DashboardPanel {
                 <script nonce="${nonce}" src="${scriptUri}"></script>
             </body>
             </html>`;
+        } catch (error) {
+            logger.error('Error generating webview HTML content:', error);
+            return `<!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <title>Error</title>
+            </head>
+            <body>
+                <h1>Error</h1>
+                <p>Failed to generate dashboard content. Check logs for details.</p>
+                <pre>${error}</pre>
+            </body>
+            </html>`;
+        }
     }
-    
+
     /**
      * Clean up resources
      */
     public dispose() {
         DashboardPanel.currentPanel = undefined;
-        
+
         // Clear the refresh interval
         if (this._refreshInterval) {
-            clearInterval(this._refreshInterval);
+            clearInterval(this._refreshInterval as unknown as number);
         }
-        
+
         this._panel.dispose();
-        
+
         while (this._disposables.length) {
             const disposable = this._disposables.pop();
             if (disposable) {
@@ -328,4 +387,4 @@ export class DashboardPanel {
             }
         }
     }
-} 
+}

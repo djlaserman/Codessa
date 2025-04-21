@@ -5,13 +5,50 @@ import * as vscode from 'vscode';
 import { ITool } from '../../tools/tool';
 import Anthropic from '@anthropic-ai/sdk';
 
+// Define interfaces for Anthropic SDK types
+interface MessageParam {
+    role: 'user' | 'assistant';
+    content: string;
+}
+
+interface Tool {
+    function: {
+        name: string;
+        description: string;
+        parameters: any;
+    };
+}
+
+interface MessageCreateParams {
+    model: string;
+    messages: MessageParam[];
+    max_tokens: number;
+    temperature?: number;
+    system?: string;
+    tools?: Tool[];
+}
+
+interface ContentBlock {
+    type: string;
+    text?: string;
+    name?: string | undefined;
+    input?: string;
+}
+
 export class AnthropicProvider implements ILLMProvider {
     readonly providerId = 'anthropic';
+    readonly displayName = 'Anthropic';
+    readonly description = 'Anthropic Claude AI models';
+    readonly website = 'https://anthropic.com';
+    readonly requiresApiKey = true;
+    readonly supportsEndpointConfiguration = false;
+    readonly defaultModel = 'claude-3-opus-20240229';
+
     private client: Anthropic | null = null;
 
     constructor() {
         this.initializeClient();
-        
+
         // Listen for configuration changes
         vscode.workspace.onDidChangeConfiguration(e => {
             if (e.affectsConfiguration('codessa.providers.anthropic')) {
@@ -23,13 +60,13 @@ export class AnthropicProvider implements ILLMProvider {
 
     private initializeClient() {
         const apiKey = getAnthropicApiKey();
-        
+
         if (!apiKey) {
             logger.warn('Anthropic API key not set.');
             this.client = null;
             return;
         }
-        
+
         try {
             this.client = new Anthropic({ apiKey });
             logger.info('Anthropic client initialized.');
@@ -44,14 +81,14 @@ export class AnthropicProvider implements ILLMProvider {
     }
 
     async generate(
-        params: LLMGenerateParams, 
+        params: LLMGenerateParams,
         cancellationToken?: vscode.CancellationToken,
         tools?: Map<string, ITool>
     ): Promise<LLMGenerateResult> {
         if (!this.client) {
-            return { 
-                content: '', 
-                error: 'Anthropic provider not configured (API key missing). Please set the API key in settings.' 
+            return {
+                content: '',
+                error: 'Anthropic provider not configured (API key missing). Please set the API key in settings.'
             };
         }
 
@@ -61,15 +98,15 @@ export class AnthropicProvider implements ILLMProvider {
 
         try {
             // Prepare messages
-            const messages: Anthropic.MessageParam[] = [];
-            
+            const messages: MessageParam[] = [];
+
             // Add history messages if available
             if (params.history && params.history.length > 0) {
                 for (const msg of params.history) {
                     if (msg.role === 'system') {
                         continue; // Skip system messages in history as Anthropic handles them separately
                     }
-                    
+
                     if (msg.role === 'user' || msg.role === 'assistant') {
                         messages.push({
                             role: msg.role as 'user' | 'assistant',
@@ -86,7 +123,7 @@ export class AnthropicProvider implements ILLMProvider {
             }
 
             // Set up tool configuration if tools are provided
-            const anthropicTools: Anthropic.Tool[] = [];
+            const anthropicTools: Tool[] = [];
             if (tools && tools.size > 0) {
                 for (const [toolId, tool] of tools.entries()) {
                     if (tool.actions) {
@@ -106,14 +143,14 @@ export class AnthropicProvider implements ILLMProvider {
             }
 
             // Create the completion request
-            const completionRequest: Anthropic.MessageCreateParams = {
+            const completionRequest: MessageCreateParams = {
                 model: params.modelId || 'claude-3-opus-20240229',
                 messages,
                 max_tokens: params.maxTokens || 1024,
                 temperature: params.temperature,
                 system: params.systemPrompt
             };
-            
+
             // Add tools if available
             if (anthropicTools.length > 0) {
                 completionRequest.tools = anthropicTools;
@@ -126,7 +163,7 @@ export class AnthropicProvider implements ILLMProvider {
             // Process the response
             let toolCallRequest: ToolCallRequest | undefined;
             let content = '';
-            
+
             if (response.content && response.content.length > 0) {
                 for (const block of response.content) {
                     if (block.type === 'text') {
@@ -135,10 +172,10 @@ export class AnthropicProvider implements ILLMProvider {
                         // Process tool call
                         try {
                             toolCallRequest = {
-                                name: block.name,
+                                name: block.name || '',
                                 arguments: JSON.parse(block.input || '{}')
                             };
-                            
+
                             // Break early to let the agent execute the tool
                             break;
                         } catch (error) {
@@ -153,17 +190,17 @@ export class AnthropicProvider implements ILLMProvider {
                 finishReason: response.stop_reason || 'stop',
                 toolCallRequest
             };
-            
+
         } catch (error: any) {
             logger.error('Error calling Anthropic API:', error);
             let errorMessage = 'Error calling Anthropic API.';
-            
+
             if (error.response?.data?.error?.message) {
                 errorMessage = `Anthropic API error: ${error.response.data.error.message}`;
             } else if (error.message) {
                 errorMessage = `Error: ${error.message}`;
             }
-            
+
             return { content: '', error: errorMessage };
         }
     }
@@ -172,7 +209,7 @@ export class AnthropicProvider implements ILLMProvider {
         if (!this.isConfigured()) {
             return [];
         }
-        
+
         // Return default Claude models - Anthropic doesn't provide a model listing API
         return [
             'claude-3-opus-20240229',
@@ -183,4 +220,108 @@ export class AnthropicProvider implements ILLMProvider {
             'claude-instant-1.2'
         ];
     }
-} 
+
+    /**
+     * Lists available models with their details
+     */
+    async listModels(): Promise<{id: string}[]> {
+        if (!this.isConfigured()) {
+            return [];
+        }
+
+        // Return default Claude models - Anthropic doesn't provide a model listing API
+        const models = [
+            { id: 'claude-3-opus-20240229' },
+            { id: 'claude-3-sonnet-20240229' },
+            { id: 'claude-3-haiku-20240307' },
+            { id: 'claude-2.1' },
+            { id: 'claude-2.0' },
+            { id: 'claude-instant-1.2' }
+        ];
+
+        logger.info(`Provider anthropic has ${models.length} models available`);
+        return models;
+    }
+
+    /**
+     * Test connection to Anthropic
+     */
+    public async testConnection(modelId: string): Promise<{success: boolean, message: string}> {
+        if (!this.client) {
+            return {
+                success: false,
+                message: 'Anthropic client not initialized. Please check your API key.'
+            };
+        }
+
+        try {
+            // Anthropic doesn't have a dedicated endpoint for testing connections,
+            // so we'll make a minimal API call
+            await this.client.messages.create({
+                model: modelId,
+                max_tokens: 10,
+                messages: [{ role: 'user', content: 'Hello' }]
+            });
+
+            return {
+                success: true,
+                message: `Successfully connected to Anthropic API with model '${modelId}'.`
+            };
+        } catch (error: any) {
+            logger.error('Anthropic connection test failed:', error);
+            let errorMessage = 'Failed to connect to Anthropic API';
+
+            if (error.response?.data?.error?.message) {
+                errorMessage = `Anthropic API error: ${error.response.data.error.message}`;
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+
+            return {
+                success: false,
+                message: errorMessage
+            };
+        }
+    }
+
+    /**
+     * Get the configuration for this provider
+     */
+    public getConfig(): any {
+        return {
+            apiKey: getAnthropicApiKey(),
+            defaultModel: this.defaultModel
+        };
+    }
+
+    /**
+     * Update the provider configuration
+     */
+    public async updateConfig(config: any): Promise<void> {
+        // This is a placeholder - in the real implementation, we would update the configuration
+        // For now, we'll just log that this method was called
+        logger.info(`Anthropic provider updateConfig called with: ${JSON.stringify(config)}`);
+    }
+
+    /**
+     * Get the configuration fields for this provider
+     */
+    public getConfigurationFields(): Array<{id: string, name: string, description: string, required: boolean, type: 'string' | 'boolean' | 'number' | 'select', options?: string[]}> {
+        return [
+            {
+                id: 'apiKey',
+                name: 'API Key',
+                description: 'Your Anthropic API key',
+                required: true,
+                type: 'string'
+            },
+            {
+                id: 'defaultModel',
+                name: 'Default Model',
+                description: 'The default model to use (e.g., claude-3-opus-20240229)',
+                required: false,
+                type: 'string'
+            }
+        ];
+    }
+}

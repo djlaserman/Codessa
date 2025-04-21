@@ -51,6 +51,22 @@ class PromptManager {
         return Object.keys(this.systemPrompts);
     }
 
+    /**
+     * Gets the description of a prompt by extracting the first line or returning a default
+     */
+    getPromptDescription(name: string): string | undefined {
+        const promptTemplate = this.systemPrompts[name];
+        if (!promptTemplate) return undefined;
+
+        // Extract the first line as the description
+        const firstLine = promptTemplate.split('\n')[0].trim();
+        if (firstLine.startsWith('#') || firstLine.startsWith('//')) {
+            return firstLine.replace(/^[#/\s]+/, '').trim();
+        }
+
+        return firstLine.length > 50 ? firstLine.substring(0, 50) + '...' : firstLine;
+    }
+
     // Add methods for creating/editing prompts and variables via UI later
 }
 

@@ -3,7 +3,7 @@ import * as diff from 'diff';
 import { logger } from '../logger';
 import * as vscode from 'vscode';
 
-export interface DiffHunk extends diff.Hunk {} 
+export interface DiffHunk extends diff.Hunk {}
 export interface ApplyPatchOptions extends diff.ApplyPatchOptions {}
 export interface CreatePatchOptions extends diff.CreatePatchOptions {}
 
@@ -23,7 +23,9 @@ class DiffEngine {
             // Ensure consistent line endings (Unix-style) before diffing for reliability
             const cleanOldStr = oldStr.replace(/\r\n/g, '\n');
             const cleanNewStr = newStr.replace(/\r\n/g, '\n');
-            return diff.createPatch(oldFileName, cleanOldStr, cleanNewStr, '', '', options);
+            // Extract context from options if provided
+            const context = options?.context;
+            return diff.createPatch(oldFileName, cleanOldStr, cleanNewStr, '', '', context ? String(context) : undefined);
         } catch (error) {
             logger.error(`Error creating patch for "${oldFileName}":`, error);
             throw error; // Re-throw to be handled by caller

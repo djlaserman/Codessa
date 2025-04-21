@@ -32,14 +32,40 @@ export interface LLMGenerateResult {
     error?: string;
 }
 
+export interface LLMModelInfo {
+    id: string;
+    name?: string;
+    description?: string;
+    contextWindow?: number;
+    maxOutputTokens?: number;
+    supportsFunctions?: boolean;
+    supportsVision?: boolean;
+    deprecated?: boolean;
+}
+
+export interface LLMProviderConfig {
+    apiKey?: string;
+    apiEndpoint?: string;
+    organizationId?: string;
+    defaultModel?: string;
+    additionalParams?: Record<string, any>;
+}
+
 export interface ILLMProvider {
     readonly providerId: string;
+    readonly displayName: string;
+    readonly description: string;
+    readonly website: string;
+    readonly defaultEndpoint?: string;
+    readonly requiresApiKey: boolean;
+    readonly supportsEndpointConfiguration: boolean;
+    readonly defaultModel?: string;
 
     /**
      * Generates text based on the provided parameters.
      */
     generate(
-        params: LLMGenerateParams, 
+        params: LLMGenerateParams,
         cancellationToken?: vscode.CancellationToken,
         tools?: Map<string, ITool>
     ): Promise<LLMGenerateResult>;
@@ -49,17 +75,44 @@ export interface ILLMProvider {
      * Note: Not all providers support streaming.
      */
     streamGenerate?(
-        params: LLMGenerateParams, 
+        params: LLMGenerateParams,
         cancellationToken?: vscode.CancellationToken
     ): AsyncGenerator<string, void, unknown>;
 
     /**
      * Fetches the list of available models for this provider.
+     * @deprecated Use listModels() instead
      */
     getAvailableModels?(): Promise<string[]>;
+
+    /**
+     * Lists available models with their details.
+     * This is the preferred method for getting models.
+     */
+    listModels(): Promise<LLMModelInfo[]>;
+
+    /**
+     * Tests the connection to the provider with the specified model.
+     */
+    testConnection(modelId: string): Promise<{success: boolean, message: string}>;
 
     /**
      * Checks if the provider is configured and ready (e.g., API key set).
      */
     isConfigured(): boolean;
+
+    /**
+     * Gets the current configuration for this provider.
+     */
+    getConfig(): LLMProviderConfig;
+
+    /**
+     * Updates the configuration for this provider.
+     */
+    updateConfig(config: LLMProviderConfig): Promise<void>;
+
+    /**
+     * Gets the required configuration fields for this provider.
+     */
+    getConfigurationFields(): Array<{id: string, name: string, description: string, required: boolean, type: 'string' | 'boolean' | 'number' | 'select', options?: string[]}>;
 }

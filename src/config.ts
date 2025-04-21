@@ -1,27 +1,36 @@
 import * as vscode from 'vscode';
-import { logger } from './logger';
 
+/**
+ * Get a configuration value from VS Code settings
+ */
 export function getConfig<T>(key: string, defaultValue: T): T {
     try {
         const config = vscode.workspace.getConfiguration('codessa');
         return config.get<T>(key, defaultValue);
     } catch (error) {
-        logger.error(`Error reading configuration key 'codessa.${key}':`, error);
+        console.error(`Error reading configuration key 'codessa.${key}':`, error);
         return defaultValue;
     }
 }
 
-export async function setConfig<T>(key: string, value: T, target: vscode.ConfigurationTarget = vscode.ConfigurationTarget.Global): Promise<void> {
+/**
+ * Set a configuration value in VS Code settings
+ */
+export async function setConfig<T>(
+    key: string,
+    value: T,
+    target: vscode.ConfigurationTarget = vscode.ConfigurationTarget.Global
+): Promise<void> {
     try {
         const config = vscode.workspace.getConfiguration('codessa');
         await config.update(key, value, target);
     } catch (error) {
-        logger.error(`Error writing configuration key 'codessa.${key}':`, error);
-        vscode.window.showErrorMessage(`Failed to update setting 'codessa.${key}'. Check logs for details.`);
+        console.error(`Error writing configuration key 'codessa.${key}':`, error);
+        throw new Error(`Failed to update setting 'codessa.${key}': ${error}`);
     }
 }
 
-// Specific configuration getters
+// Core settings
 export function getLogLevel(): string {
     return getConfig<string>('logLevel', 'info');
 }
@@ -31,16 +40,29 @@ export function getMaxToolIterations(): number {
 }
 
 export function getDefaultModelConfig(): LLMConfig {
-    return getConfig<LLMConfig>('defaultModel', { provider: 'ollama', modelId: 'llama3' });
+    const defaultConfig: LLMConfig = {
+        provider: 'ollama',
+        modelId: 'llama2',
+        options: {
+            temperature: 0.7,
+            maxTokens: 2000
+        }
+    };
+    return getConfig<LLMConfig>('defaultModel', defaultConfig);
 }
 
-// Provider specific getters
+// Provider configurations
 export function getOpenAIApiKey(): string {
     return getConfig<string>('providers.openai.apiKey', '');
 }
 
 export function getOpenAIBaseUrl(): string {
-    return getConfig<string>('providers.openai.baseUrl', '');
+    const defaultUrl = 'https://api.openai.com/v1';
+    return getConfig<string>('providers.openai.baseUrl', defaultUrl);
+}
+
+export function getOpenAIOrganization(): string {
+    return getConfig<string>('providers.openai.organization', '');
 }
 
 export function getGoogleAIApiKey(): string {
@@ -85,7 +107,15 @@ export function getPromptVariables(): Record<string, string> {
 export interface LLMConfig {
     provider: string;
     modelId: string;
-    options?: Record<string, any>;
+    options?: {
+        temperature?: number;
+        maxTokens?: number;
+        topP?: number;
+        frequencyPenalty?: number;
+        presencePenalty?: number;
+        stopSequences?: string[];
+        [key: string]: any;
+    };
 }
 
 export interface AgentConfig {

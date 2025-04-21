@@ -59,18 +59,18 @@ html, body {
 .config-container {
     display: flex;
     flex-direction: column;
-    max-width: 100%;
+    max-width: 800px;
     margin: 0 auto;
     height: 100vh;
+    padding: 20px;
 }
 
 .config-header {
     display: flex;
     align-items: center;
-    padding: 16px;
-    background-color: var(--codessa-gray-100);
-    border-bottom: 1px solid var(--codessa-gray-200);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    margin-bottom: 30px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--vscode-editor-lineHighlightBorder);
 }
 
 .config-header .logo {
@@ -81,11 +81,14 @@ html, body {
 
 .config-header h1 {
     margin: 0;
-    font-size: 18px;
-    font-weight: 600;
+    font-size: 24px;
+    color: var(--vscode-editor-foreground);
 }
 
 .config-form {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
     flex: 1;
     padding: 24px;
     overflow-y: auto;
@@ -96,21 +99,17 @@ html, body {
 
 .form-section {
     margin-bottom: 28px;
+    background: var(--vscode-editor-background);
+    border: 1px solid var(--vscode-editor-lineHighlightBorder);
+    border-radius: 6px;
     padding: 20px;
-    border-radius: 8px;
-    background-color: var(--codessa-background);
-    border: 1px solid var(--codessa-gray-200);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
 }
 
 .form-section h2 {
-    margin-top: 0;
-    margin-bottom: 20px;
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--codessa-gray-800);
-    border-bottom: 1px solid var(--codessa-gray-200);
-    padding-bottom: 8px;
+    margin: 0 0 16px 0;
+    font-size: 18px;
+    color: var(--vscode-editor-foreground);
 }
 
 .form-group {
@@ -123,26 +122,28 @@ html, body {
 
 .form-group label {
     display: block;
-    margin-bottom: 6px;
-    font-weight: 500;
-    color: var(--codessa-gray-700);
+    margin-bottom: 8px;
+    color: var(--vscode-editor-foreground);
 }
 
 .form-control {
     width: 100%;
-    padding: 8px 12px;
-    border: 1px solid var(--codessa-gray-300);
+    padding: 8px;
+    border: 1px solid var(--vscode-input-border);
+    background: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
     border-radius: 4px;
-    font-size: 14px;
-    color: var(--codessa-foreground);
-    background-color: var(--codessa-background);
     transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .form-control:focus {
     outline: none;
-    border-color: var(--codessa-primary);
-    box-shadow: 0 0 0 2px rgba(77, 122, 255, 0.15);
+    border-color: var(--vscode-focusBorder);
+}
+
+.form-control:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 textarea.form-control {
@@ -151,28 +152,28 @@ textarea.form-control {
 }
 
 .description {
+    margin-top: 4px;
     font-size: 12px;
-    color: var(--codessa-gray-500);
-    margin-top: 6px;
+    color: var(--vscode-descriptionForeground);
 }
 
 /* Checkbox container styles */
 .checkbox-container {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
     margin-top: 8px;
 }
 
 .checkbox-label {
     display: flex;
     align-items: center;
+    gap: 8px;
     cursor: pointer;
-    user-select: none;
 }
 
 .checkbox-label input[type="checkbox"] {
-    margin-right: 8px;
+    margin: 0;
 }
 
 .checkbox-item {
@@ -211,6 +212,23 @@ textarea.form-control {
     margin-top: 4px;
 }
 
+.tool-item, .agent-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.tool-item input[type="checkbox"], 
+.agent-item input[type="checkbox"] {
+    margin: 0;
+}
+
+.tool-item label, 
+.agent-item label {
+    margin: 0;
+    cursor: pointer;
+}
+
 /* Form actions */
 .form-actions {
     display: flex;
@@ -224,32 +242,37 @@ textarea.form-control {
     bottom: 0;
 }
 
-/* Button styles */
 .btn {
     padding: 8px 16px;
     border: none;
     border-radius: 4px;
-    font-weight: 500;
     cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
     transition: all 0.2s;
 }
 
-.btn.primary {
-    background-color: var(--codessa-primary);
-    color: white;
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
-.btn.primary:hover {
-    background-color: var(--codessa-primary-dark);
+.btn.primary {
+    background: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+}
+
+.btn.primary:hover:not(:disabled) {
+    background: var(--vscode-button-hoverBackground);
 }
 
 .btn.secondary {
-    background-color: var(--codessa-gray-200);
-    color: var(--codessa-gray-800);
+    background: var(--vscode-button-secondaryBackground);
+    color: var(--vscode-button-secondaryForeground);
 }
 
-.btn.secondary:hover {
-    background-color: var(--codessa-gray-300);
+.btn.secondary:hover:not(:disabled) {
+    background: var(--vscode-button-secondaryHoverBackground);
 }
 
 .btn:active {
@@ -259,7 +282,15 @@ textarea.form-control {
 /* Connection status */
 #connection-status {
     margin-left: 12px;
-    font-size: 14px;
+    font-size: 13px;
+}
+
+#connection-status.success {
+    color: var(--vscode-testing-iconPassed);
+}
+
+#connection-status.error {
+    color: var(--vscode-testing-iconFailed);
 }
 
 .status-success {
@@ -312,4 +343,4 @@ textarea.form-control {
     .btn {
         width: 100%;
     }
-} 
+}

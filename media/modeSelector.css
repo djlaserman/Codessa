@@ -1,0 +1,186 @@
+/**
+ * Codessa Mode Selector UI Styles
+ *
+ * A modern, clean interface for the mode selector panel
+ */
+
+:root {
+    --codessa-primary: #4D7AFF;
+    --codessa-primary-light: #7A9BFF;
+    --codessa-primary-dark: #2B5CE0;
+    --codessa-secondary: #34D399;
+    --codessa-accent: #EC4899;
+    --codessa-background: #FFFFFF;
+    --codessa-foreground: #1F2937;
+    --codessa-gray-100: #F3F4F6;
+    --codessa-gray-200: #E5E7EB;
+    --codessa-gray-300: #D1D5DB;
+    --codessa-gray-400: #9CA3AF;
+    --codessa-gray-500: #6B7280;
+    --codessa-gray-600: #4B5563;
+    --codessa-gray-700: #374151;
+    --codessa-gray-800: #1F2937;
+    --codessa-gray-900: #111827;
+    --codessa-error: #F87171;
+    --codessa-warning: #FBBF24;
+    --codessa-success: #34D399;
+    --codessa-info: #60A5FA;
+
+    /* Dark theme variables */
+    --vscode-editor-background: var(--codessa-background);
+    --vscode-editor-foreground: var(--codessa-foreground);
+}
+
+body.vscode-dark {
+    --codessa-background: #111827;
+    --codessa-foreground: #F9FAFB;
+    --codessa-gray-100: #1F2937;
+    --codessa-gray-200: #374151;
+    --codessa-gray-300: #4B5563;
+    --codessa-gray-400: #6B7280;
+    --codessa-gray-500: #9CA3AF;
+    --codessa-gray-600: #D1D5DB;
+    --codessa-gray-700: #E5E7EB;
+    --codessa-gray-800: #F3F4F6;
+    --codessa-gray-900: #F9FAFB;
+}
+
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    background-color: var(--codessa-background);
+    color: var(--codessa-foreground);
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+.mode-selector-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background: var(--vscode-editor-background);
+    padding: 20px;
+}
+
+.mode-selector-header {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    gap: 12px;
+}
+
+.logo {
+    width: 32px;
+    height: 32px;
+}
+
+.mode-selector-header h1 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.modes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+    padding: 10px;
+}
+
+.mode-card {
+    display: flex;
+    flex-direction: column;
+    background: var(--vscode-editor-background);
+    border: 1px solid var(--vscode-editor-lineHighlightBorder);
+    border-radius: 8px;
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    height: 100%;
+}
+
+.mode-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border-color: var(--codessa-primary);
+}
+
+.mode-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    background: var(--codessa-primary-light);
+    color: white;
+    border-radius: 50%;
+    margin-bottom: 16px;
+    font-size: 24px;
+}
+
+.mode-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.mode-title {
+    margin: 0 0 8px 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--vscode-editor-foreground);
+}
+
+.mode-description {
+    margin: 0 0 16px 0;
+    font-size: 14px;
+    color: var(--vscode-descriptionForeground);
+    flex: 1;
+}
+
+.mode-features {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: auto;
+}
+
+.mode-feature {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    background: var(--vscode-badge-background);
+    color: var(--vscode-badge-foreground);
+}
+
+.mode-feature i {
+    font-size: 14px;
+}
+
+.mode-feature.verification {
+    background: var(--codessa-warning);
+    color: var(--codessa-gray-900);
+}
+
+.mode-feature.multi-agent {
+    background: var(--codessa-info);
+    color: var(--codessa-gray-900);
+}
+
+.no-modes {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 40px;
+    font-style: italic;
+    color: var(--vscode-descriptionForeground);
+}

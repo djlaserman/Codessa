@@ -1,3 +1,4 @@
+import * as vscode from 'vscode';
 import { logger } from '../logger';
 import { Agent } from './agent';
 import { AgentConfig, getAgents, saveAgents } from '../config';
@@ -8,6 +9,8 @@ import { v4 as uuidv4 } from 'uuid';
  */
 export class AgentManager {
     private agents = new Map<string, Agent>();
+    private _onAgentsChanged = new vscode.EventEmitter<void>();
+    readonly onAgentsChanged = this._onAgentsChanged.event;
 
     constructor() {
         this.loadAgents();
@@ -20,7 +23,7 @@ export class AgentManager {
         try {
             const agentConfigs = getAgents();
             this.agents.clear();
-            
+
             agentConfigs.forEach(config => {
                 try {
                     const agent = new Agent(config);
@@ -29,8 +32,9 @@ export class AgentManager {
                     logger.error(`Failed to load agent ${config.id}:`, error);
                 }
             });
-            
+
             logger.info(`Loaded ${this.agents.size} agents`);
+            this._onAgentsChanged.fire();
         } catch (error) {
             logger.error("Failed to load agents:", error);
         }
@@ -59,14 +63,15 @@ export class AgentManager {
             id,
             ...config
         };
-        
+
         const agent = new Agent(fullConfig);
         this.agents.set(id, agent);
-        
+
         // Save to configuration
         await this.saveAgents();
-        
+
         logger.info(`Created new agent: ${agent.name} (${agent.id})`);
+        this._onAgentsChanged.fire();
         return agent;
     }
 
@@ -79,11 +84,11 @@ export class AgentManager {
             logger.warn(`Agent with ID ${id} not found for update`);
             return undefined;
         }
-        
+
         // Get current configs
         const allConfigs = getAgents();
         const index = allConfigs.findIndex(a => a.id === id);
-        
+
         if (index >= 0) {
             // Update config
             const updatedConfig = {
@@ -91,19 +96,19 @@ export class AgentManager {
                 ...config,
                 id // Ensure ID doesn't change
             };
-            
+
             allConfigs[index] = updatedConfig;
-            
+
             // Save configs
             await saveAgents(allConfigs);
-            
+
             // Reload agents
-            this.loadAgents();
-            
+            this.loadAgents(); // This will fire the onAgentsChanged event
+
             logger.info(`Updated agent: ${updatedConfig.name} (${id})`);
             return this.agents.get(id);
         }
-        
+
         return undefined;
     }
 
@@ -115,17 +120,18 @@ export class AgentManager {
             logger.warn(`Agent with ID ${id} not found for deletion`);
             return false;
         }
-        
+
         // Remove from memory
         this.agents.delete(id);
-        
+
         // Get current configs and filter out the deleted one
         const allConfigs = getAgents().filter(a => a.id !== id);
-        
+
         // Save updated configs
         await saveAgents(allConfigs);
-        
+
         logger.info(`Deleted agent with ID ${id}`);
+        this._onAgentsChanged.fire();
         return true;
     }
 
@@ -144,7 +150,7 @@ export class AgentManager {
                 isSupervisor: agent.isSupervisor,
                 chainedAgentIds: agent.chainedAgentIds
             }));
-            
+
             await saveAgents(configs);
             logger.info(`Saved ${configs.length} agents to configuration`);
         } catch (error) {

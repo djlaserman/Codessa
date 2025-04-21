@@ -14,7 +14,7 @@ export class SupervisorAgent extends Agent {
     override async run(input: AgentRunInput, context: AgentContext = {}): Promise<AgentRunResult> {
         logger.info(`Supervisor Agent '${this.name}' starting task: ${input.prompt}`);
         const startTime = Date.now();
-        const provider = llmService.getProviderForConfig(this.llmConfig);
+        const provider = llmService.getProviderForConfig(this.llmConfig || llmService.getDefaultModelConfig());
         const maxIterations = getMaxToolIterations();
         let finalResult: string | null = null;
         let iterations = 0;
@@ -28,11 +28,15 @@ export class SupervisorAgent extends Agent {
                     return { success: false, error: 'Cancelled by user.' };
                 }
                 // --- Call Supervisor LLM ---
+                if (!provider) {
+                    throw new Error('No LLM provider available');
+                }
+
                 const response = await provider.generate({
                     prompt: input.prompt,
                     systemPrompt: '',
-                    tools: this.tools,
-                    mode: input.mode
+                    mode: input.mode,
+                    modelId: this.llmConfig?.modelId || llmService.getDefaultModelConfig().modelId
                 }, context.cancellationToken, this.tools);
                 conversationHistory.push(response.content);
                 if (response.content) {

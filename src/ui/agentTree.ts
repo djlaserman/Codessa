@@ -13,21 +13,21 @@ class AgentTreeItem extends vscode.TreeItem {
         public readonly collapsibleState: vscode.TreeItemCollapsibleState
     ) {
         super(agent.name, collapsibleState);
-        
+
         this.id = agent.id;
         this.tooltip = agent.description || agent.name;
         this.description = agent.isSupervisor ? 'Supervisor' : '';
-        
+
         // Set context for contextual menus
         this.contextValue = agent.isSupervisor ? 'supervisorAgent' : 'agent';
-        
+
         // Choose icon based on agent type
         const iconName = agent.isSupervisor ? 'agent-supervisor.svg' : 'agent.svg';
         this.iconPath = {
-            light: path.join(__filename, '..', '..', '..', 'resources', 'light', iconName),
-            dark: path.join(__filename, '..', '..', '..', 'resources', 'dark', iconName)
+            light: vscode.Uri.file(path.join(__filename, '..', '..', '..', 'resources', 'light', iconName)),
+            dark: vscode.Uri.file(path.join(__filename, '..', '..', '..', 'resources', 'dark', iconName))
         };
-        
+
         // Command to run when the tree item is clicked
         this.command = {
             command: 'codessa.openAgentPanel',
@@ -49,24 +49,24 @@ class AgentPropertyItem extends vscode.TreeItem {
         public readonly collapsibleState: vscode.TreeItemCollapsibleState
     ) {
         super(label, collapsibleState);
-        
+
         // Set unique ID
         this.id = `${parent.id}-${type}-${value}`;
-        
+
         // Define contextValue for context menu filtering
         this.contextValue = `agentProperty-${type}`;
-        
+
         // Set appropriate icon
         let iconName = 'property.svg';
         if (type === 'tool') iconName = 'tool.svg';
         if (type === 'model') iconName = 'model.svg';
         if (type === 'chainedAgent') iconName = 'chain.svg';
-        
+
         this.iconPath = {
-            light: path.join(__filename, '..', '..', '..', 'resources', 'light', iconName),
-            dark: path.join(__filename, '..', '..', '..', 'resources', 'dark', iconName)
+            light: vscode.Uri.file(path.join(__filename, '..', '..', '..', 'resources', 'light', iconName)),
+            dark: vscode.Uri.file(path.join(__filename, '..', '..', '..', 'resources', 'dark', iconName))
         };
-        
+
         // Clicking opens details panel for some property types
         if (type === 'tool' || type === 'chainedAgent') {
             this.command = {
@@ -115,7 +115,7 @@ export class AgentTreeDataProvider implements vscode.TreeDataProvider<vscode.Tre
             // Agent level - show agent properties
             return Promise.resolve(this.getAgentProperties(element.agent));
         }
-        
+
         return Promise.resolve([]);
     }
 
@@ -125,17 +125,17 @@ export class AgentTreeDataProvider implements vscode.TreeDataProvider<vscode.Tre
     private getAgents(): vscode.TreeItem[] {
         try {
             const agents = agentManager.getAllAgents();
-            
+
             if (agents.length === 0) {
                 return [
                     new vscode.TreeItem('No agents configured', vscode.TreeItemCollapsibleState.None)
                 ];
             }
-            
+
             return agents.map(agent => new AgentTreeItem(
-                agent, 
-                (agent.isSupervisor || agent.tools.size > 0 || agent.chainedAgentIds.length > 0) 
-                    ? vscode.TreeItemCollapsibleState.Collapsed 
+                agent,
+                (agent.isSupervisor || agent.tools.size > 0 || agent.chainedAgentIds.length > 0)
+                    ? vscode.TreeItemCollapsibleState.Collapsed
                     : vscode.TreeItemCollapsibleState.None
             ));
         } catch (error) {
@@ -151,7 +151,7 @@ export class AgentTreeDataProvider implements vscode.TreeDataProvider<vscode.Tre
      */
     private getAgentProperties(agent: Agent): vscode.TreeItem[] {
         const items: vscode.TreeItem[] = [];
-        
+
         // Add LLM model info
         if (agent.llmConfig) {
             const modelLabel = `Model: ${agent.llmConfig.provider} / ${agent.llmConfig.modelId}`;
@@ -163,7 +163,7 @@ export class AgentTreeDataProvider implements vscode.TreeDataProvider<vscode.Tre
                 vscode.TreeItemCollapsibleState.None
             ));
         }
-        
+
         // Add tools
         if (agent.tools.size > 0) {
             for (const [toolId, tool] of agent.tools.entries()) {
@@ -176,13 +176,13 @@ export class AgentTreeDataProvider implements vscode.TreeDataProvider<vscode.Tre
                 ));
             }
         }
-        
+
         // Add chained agents for supervisors
         if (agent.isSupervisor && agent.chainedAgentIds.length > 0) {
             for (const chainedId of agent.chainedAgentIds) {
                 const chainedAgent = agentManager.getAgent(chainedId);
                 const name = chainedAgent ? chainedAgent.name : chainedId;
-                
+
                 items.push(new AgentPropertyItem(
                     `Chain: ${name}`,
                     agent,
@@ -192,7 +192,7 @@ export class AgentTreeDataProvider implements vscode.TreeDataProvider<vscode.Tre
                 ));
             }
         }
-        
+
         return items;
     }
 }
@@ -207,7 +207,7 @@ export function registerAgentTreeView(context: vscode.ExtensionContext): vscode.
         showCollapseAll: true,
         canSelectMany: false
     });
-    
+
     context.subscriptions.push(
         treeView,
         vscode.commands.registerCommand('codessa.refreshAgentTree', () => treeDataProvider.refresh()),
@@ -220,6 +220,6 @@ export function registerAgentTreeView(context: vscode.ExtensionContext): vscode.
             vscode.commands.executeCommand('codessa.openToolDetailsPanel', toolId);
         })
     );
-    
+
     return treeView;
 }

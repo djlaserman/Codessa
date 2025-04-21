@@ -9,13 +9,26 @@ export interface ToolResult {
     output?: any;
     error?: string;
     usage?: { [key: string]: number };
+    toolId?: string;
+}
+
+export interface ToolAction {
+    description?: string;
+    parameters?: any;
 }
 
 export interface ITool {
     readonly id: string;
     readonly name: string;
     readonly description: string;
-    readonly inputSchema?: object;
+    readonly category?: string;
+    readonly inputSchema?: {
+        type: string;
+        properties?: Record<string, any>;
+        required?: string[];
+    };
+    readonly parameters?: any; // For backward compatibility
+    readonly actions?: Record<string, ToolAction>;
 
     /**
      * Executes the tool's action.
