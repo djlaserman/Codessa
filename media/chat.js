@@ -54,13 +54,37 @@
         } else {
             showEmptyState();
         }
+
+        console.log('Initial state:', {
+            mode: currentMode,
+            provider: currentProvider,
+            model: currentModel,
+            providers: availableProviders.length,
+            models: availableModels.length
+        });
+
+        // Set up event listeners first so we can receive messages
+        setupEventListeners();
+
+        // Initialize UI
         populateDropdowns();
         setSelectedOptions();
         scrollToBottom(true); // Initial scroll, no animation
         updateProcessingStateUI(); // Initial state check for buttons
         updateTTSButtonUI();
-        setupEventListeners();
         autoResizeTextarea(); // Initial size check
+
+        // Request providers and models from extension
+        console.log('Requesting providers and models from extension');
+        setTimeout(() => {
+            console.log('Sending getProviders request');
+            vscode.postMessage({ command: 'getProviders' });
+
+            setTimeout(() => {
+                console.log('Sending getModels request');
+                vscode.postMessage({ command: 'getModels' });
+            }, 500);
+        }, 500);
     }
 
     // Add animated background logo to chat messages area
@@ -576,35 +600,118 @@
 
     // --- Dropdown Population ---
     function populateDropdowns() {
-        providerSelector.innerHTML = '<option value="">Provider...</option>';
-        availableProviders.forEach(provider => {
-            const option = document.createElement('option');
-            option.value = provider.id;
-            option.textContent = provider.name;
-            providerSelector.appendChild(option);
-        });
+        // Request providers from extension if not available
+        if (!availableProviders || availableProviders.length === 0) {
+            vscode.postMessage({ command: 'getProviders' });
+            console.log('Requesting providers from extension');
+        } else {
+            updateProviderDropdown();
+        }
 
-        populateModelDropdown();
+        // Request models from extension if not available
+        if (!availableModels || availableModels.length === 0) {
+            vscode.postMessage({ command: 'getModels' });
+            console.log('Requesting models from extension');
+        } else {
+            populateModelDropdown();
+        }
+    }
+
+    function updateProviderDropdown() {
+        console.log('Updating provider dropdown with', availableProviders.length, 'providers');
+        providerSelector.innerHTML = '<option value="">Provider...</option>';
+
+        if (availableProviders && availableProviders.length > 0) {
+            // Sort providers alphabetically by name
+            const sortedProviders = [...availableProviders].sort((a, b) => a.name.localeCompare(b.name));
+
+            // Add providers to dropdown
+            sortedProviders.forEach(provider => {
+                const option = document.createElement('option');
+                option.value = provider.id;
+                option.textContent = provider.name;
+                providerSelector.appendChild(option);
+            });
+
+            // Set the current provider if it exists in the list
+            if (currentProvider && availableProviders.some(p => p.id === currentProvider)) {
+                providerSelector.value = currentProvider;
+                console.log('Selected existing provider:', currentProvider);
+            } else if (availableProviders.length > 0) {
+                // Set default provider if none selected
+                currentProvider = availableProviders[0].id;
+                providerSelector.value = currentProvider;
+                console.log('Set default provider:', currentProvider);
+            }
+
+            // Update models for this provider
+            populateModelDropdown();
+        } else {
+            console.warn('No providers available to populate dropdown');
+        }
     }
 
     function populateModelDropdown() {
+        console.log('Updating model dropdown with', availableModels.length, 'models');
         modelSelector.innerHTML = '<option value="">Model...</option>';
+
+        // Filter models for current provider
         const filteredModels = currentProvider
             ? availableModels.filter(model => model.provider === currentProvider)
             : availableModels;
 
-        filteredModels.forEach(model => {
-            const option = document.createElement('option');
-            option.value = model.id;
-            option.textContent = model.name;
-            modelSelector.appendChild(option);
-        });
-        modelSelector.value = currentModel && filteredModels.some(m => m.id === currentModel) ? currentModel : "";
+        console.log('Filtered models for provider', currentProvider, ':', filteredModels.length);
+
+        if (filteredModels && filteredModels.length > 0) {
+            // Sort models alphabetically by name
+            const sortedModels = [...filteredModels].sort((a, b) => a.name.localeCompare(b.name));
+
+            // Add models to dropdown
+            sortedModels.forEach(model => {
+                const option = document.createElement('option');
+                option.value = model.id;
+                option.textContent = model.name;
+                modelSelector.appendChild(option);
+            });
+
+            // Set the current model if it exists in the filtered list
+            if (currentModel && filteredModels.some(m => m.id === currentModel)) {
+                modelSelector.value = currentModel;
+                console.log('Selected existing model:', currentModel);
+            } else if (filteredModels.length > 0) {
+                // Set default model if none selected
+                currentModel = filteredModels[0].id;
+                modelSelector.value = currentModel;
+                console.log('Set default model:', currentModel);
+            }
+        } else {
+            console.warn('No models available for provider:', currentProvider);
+            // Request models again
+            vscode.postMessage({ command: 'getModels' });
+        }
     }
 
     function setSelectedOptions() {
-        modeSelector.value = currentMode;
-        providerSelector.value = currentProvider;
+        // Set mode dropdown value
+        if (currentMode) {
+            modeSelector.value = currentMode;
+        }
+
+        // Set provider dropdown value
+        if (currentProvider) {
+            providerSelector.value = currentProvider;
+        }
+
+        // Set model dropdown value
+        if (currentModel) {
+            modelSelector.value = currentModel;
+        }
+
+        console.log('Selected options set:', {
+            mode: modeSelector.value,
+            provider: providerSelector.value,
+            model: modelSelector.value
+        });
     }
 
     // --- UI Updates & DOM Manipulation ---
@@ -630,18 +737,79 @@
              messageWrapper.style.opacity = '1';
         }
 
-        const avatar = document.createElement('div');
-        avatar.className = 'message-avatar';
-        avatar.setAttribute('aria-hidden', 'true');
-        avatar.innerHTML = getAvatarIcon(message.role);
-        if (message.role !== 'system') {
-             messageWrapper.appendChild(avatar);
-        } else {
-             messageWrapper.style.justifyContent = 'center';
+        // Add chat-head component
+        if (message.role !== 'system' && message.role !== 'error') {
+            const chatHead = document.createElement('div');
+            chatHead.className = 'chat-head';
+
+            // Left line
+            const leftLine = document.createElement('div');
+            leftLine.className = 'chat-head-line';
+            chatHead.appendChild(leftLine);
+
+            // Circle
+            const circle = document.createElement('div');
+            circle.className = 'chat-head-circle';
+            circle.addEventListener('click', () => {
+                circle.classList.toggle('active');
+                // You can add additional functionality here when the circle is clicked
+            });
+            chatHead.appendChild(circle);
+
+            // Username
+            const username = document.createElement('div');
+            username.className = 'chat-head-username';
+            if (message.role === 'user') {
+                username.textContent = initialState.username || 'User';
+            } else if (message.role === 'assistant') {
+                username.textContent = 'codessa - ai response';
+            }
+            chatHead.appendChild(username);
+
+            // Right line
+            const rightLine = document.createElement('div');
+            rightLine.className = 'chat-head-line';
+            chatHead.appendChild(rightLine);
+
+            messageWrapper.appendChild(chatHead);
         }
 
         const bubble = document.createElement('div');
         bubble.className = 'message-bubble';
+
+        // Add context information if available
+        if (message.role === 'user') {
+            // Add mode information for user messages
+            const contextElement = document.createElement('div');
+            contextElement.className = 'message-context';
+            contextElement.textContent = `mode: ${currentMode || 'chat'}`;
+            bubble.appendChild(contextElement);
+        } else if (message.role === 'assistant' && message.context) {
+            // Add file context for AI messages if available
+            const contextElement = document.createElement('div');
+            contextElement.className = 'message-context';
+            contextElement.textContent = message.context;
+            bubble.appendChild(contextElement);
+        } else if (message.role === 'error') {
+            // Add header for error messages
+            const header = document.createElement('div');
+            header.className = 'message-header';
+
+            const headerLeft = document.createElement('div');
+            headerLeft.className = 'message-username';
+            headerLeft.textContent = 'Error';
+
+            const headerRight = document.createElement('div');
+            headerRight.className = 'message-id';
+            const shortId = message.id.includes('_')
+                ? message.id.split('_').pop().substring(0, 6)
+                : Math.random().toString(16).substring(2, 8);
+            headerRight.textContent = `#${shortId}`;
+
+            header.appendChild(headerLeft);
+            header.appendChild(headerRight);
+            bubble.appendChild(header);
+        }
 
         const contentElement = document.createElement('div');
         contentElement.className = 'message-content';
@@ -890,7 +1058,21 @@
         messageInput.focus();
     }
 
-    function handleCancel() { vscode.postMessage({ command: 'cancelOperation' }); }
+    function handleCancel() {
+        console.log('Cancel button clicked');
+        // Show immediate visual feedback
+        isProcessing = false;
+        updateProcessingStateUI();
+        // Add a temporary message
+        addMessageToUI({
+            id: `cancelling_${Date.now()}`,
+            role: 'system',
+            content: 'Cancelling operation...',
+            timestamp: Date.now()
+        });
+        // Send the cancel command
+        vscode.postMessage({ command: 'cancelOperation' });
+    }
     function handleClear() { vscode.postMessage({ command: 'clearChat' }); }
     function handleExport() { vscode.postMessage({ command: 'exportChat' }); }
     function handleSettings() { vscode.postMessage({ command: 'openSettings' }); }
@@ -909,18 +1091,33 @@
     }
 
     function handleModeChange(event) {
-        currentMode = event.target.value;
-        vscode.postMessage({ command: 'changeMode', mode: currentMode });
+        const selectedMode = event.target.value;
+        if (selectedMode && selectedMode !== currentMode) {
+            currentMode = selectedMode;
+            console.log('Mode changed to:', selectedMode);
+            vscode.postMessage({ command: 'changeMode', mode: selectedMode });
+        }
     }
+
     function handleProviderChange(event) {
-        currentProvider = event.target.value;
-        currentModel = "";
-        populateModelDropdown();
-        vscode.postMessage({ command: 'changeProvider', provider: currentProvider });
+        const selectedProvider = event.target.value;
+        if (selectedProvider !== currentProvider) {
+            currentProvider = selectedProvider;
+            console.log('Provider changed to:', selectedProvider);
+            // Reset model when provider changes
+            currentModel = "";
+            populateModelDropdown();
+            vscode.postMessage({ command: 'changeProvider', provider: selectedProvider });
+        }
     }
+
     function handleModelChange(event) {
-        currentModel = event.target.value;
-        vscode.postMessage({ command: 'changeModel', model: currentModel });
+        const selectedModel = event.target.value;
+        if (selectedModel !== currentModel) {
+            currentModel = selectedModel;
+            console.log('Model changed to:', selectedModel);
+            vscode.postMessage({ command: 'changeModel', model: selectedModel });
+        }
     }
 
     function handleInputCopy() {
@@ -1012,8 +1209,11 @@
     // --- Message Handling from Extension ---
     function handleExtensionMessage(event) {
         const message = event.data;
+        // Support both message.type and message.command for backward compatibility
+        const messageType = message.command || message.type;
+        console.log('Received message from extension:', messageType);
 
-        switch (message.type) {
+        switch (messageType) {
             case 'addMessage':
                 if (!currentMessages.some(m => m.id === message.message.id)) {
                     addMessageToUI(message.message);
@@ -1026,6 +1226,23 @@
                              try {
                                 contentElement.innerHTML = marked.parse(message.message.content || '');
                                 contentElement.querySelectorAll('pre code').forEach(block => enhanceCodeBlock(block.parentElement));
+
+                                // Update context if provided
+                                if (message.message.context) {
+                                    let contextElement = existingElement.querySelector('.message-context');
+                                    if (!contextElement) {
+                                        contextElement = document.createElement('div');
+                                        contextElement.className = 'message-context';
+                                        const bubble = existingElement.querySelector('.message-bubble');
+                                        const header = bubble.querySelector('.message-header');
+                                        if (header) {
+                                            bubble.insertBefore(contextElement, header.nextSibling);
+                                        } else {
+                                            bubble.insertBefore(contextElement, bubble.firstChild);
+                                        }
+                                    }
+                                    contextElement.textContent = message.message.context;
+                                }
                             } catch(e) {
                                 console.error("Markdown parsing error on update:", e);
                                 contentElement.textContent = message.message.content || '';
@@ -1056,26 +1273,73 @@
                 updateTTSButtonUI();
                 break;
 
-            case 'updateProviders':
-                availableProviders = message.providers || [];
-                const selectedProvider = providerSelector.value;
-                populateDropdowns();
-                if (availableProviders.some(p => p.id === selectedProvider)) {
-                    providerSelector.value = selectedProvider;
+            case 'providers':
+                console.log('Received providers from extension:', message.providers);
+                if (message.providers && message.providers.length > 0) {
+                    availableProviders = message.providers;
+                    console.log(`Received ${availableProviders.length} providers:`, availableProviders.map(p => p.name).join(', '));
+                    updateProviderDropdown();
                 } else {
-                    currentProvider = "";
+                    console.warn('Received empty providers list from extension');
+                    // Request providers again after a delay
+                    setTimeout(() => {
+                        console.log('Re-requesting providers');
+                        vscode.postMessage({ command: 'getProviders' });
+                    }, 1000);
+                }
+                break;
+
+            case 'updateProviders':
+                console.log('Received providers update from extension:', message.providers);
+                if (message.providers && message.providers.length > 0) {
+                    availableProviders = message.providers;
+                    console.log(`Received ${availableProviders.length} providers:`, availableProviders.map(p => p.name).join(', '));
+                    updateProviderDropdown();
+                } else {
+                    console.warn('Received empty providers list from extension update');
+                }
+                break;
+
+            case 'models':
+                console.log('Received models from extension:', message.models);
+                if (message.models && message.models.length > 0) {
+                    availableModels = message.models;
+                    console.log(`Received ${availableModels.length} models`);
                     populateModelDropdown();
+                } else {
+                    console.warn('Received empty models list from extension');
+                    // Request models again after a delay
+                    setTimeout(() => {
+                        console.log('Re-requesting models');
+                        vscode.postMessage({ command: 'getModels' });
+                    }, 1000);
                 }
                 break;
 
             case 'updateModels':
-                availableModels = message.models || [];
-                const selectedModel = modelSelector.value;
-                populateModelDropdown();
-                if (availableModels.some(m => m.id === selectedModel && m.provider === currentProvider)) {
-                    modelSelector.value = selectedModel;
+                console.log('Received models update from extension:', message.models);
+                if (message.models && message.models.length > 0) {
+                    availableModels = message.models;
+                    console.log(`Received ${availableModels.length} models`);
+                    populateModelDropdown();
                 } else {
-                    currentModel = "";
+                    console.warn('Received empty models list from extension update');
+                }
+                break;
+
+            case 'currentSettings':
+                console.log('Received current settings from extension:', message.settings);
+                if (message.settings) {
+                    if (message.settings.mode) {
+                        currentMode = message.settings.mode;
+                    }
+                    if (message.settings.provider) {
+                        currentProvider = message.settings.provider;
+                    }
+                    if (message.settings.model) {
+                        currentModel = message.settings.model;
+                    }
+                    setSelectedOptions();
                 }
                 break;
 

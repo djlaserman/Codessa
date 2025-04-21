@@ -280,3 +280,23 @@ This is likely due to one of the following issues:
    - Test with LM Studio running and not running
    - Verify error messages are helpful and not overwhelming
    - Ensure the extension continues to function even if LM Studio is unavailable
+
+## Provider and Model Dropdown Fix
+
+### Dropdown Issue Analysis
+
+The provider and model dropdowns in the chat view are not being populated correctly. The issue is that the message type in the webview doesn't match what the extension is expecting. The extension is sending messages with `type` property, but the webview is expecting `command` property.
+
+### Dropdown Fix Implementation
+
+1. **Updated Message Handling in ChatView**
+   - Updated `_sendInitialData` method in `chatView.ts` to use `command` instead of `type` in the message
+   - Updated `_handleGetProviders` and `_handleGetModels` methods to use `command` instead of `type`
+
+2. **Updated Message Handling in WebView**
+   - Updated the message handler in `chat.js` to support both `command` and `type` properties for backward compatibility
+   - Added better logging to track message flow between extension and webview
+
+### Expected Outcome
+
+After these changes, the provider and model dropdowns should be populated correctly, and users should be able to select providers and models without errors. The fix ensures compatibility with both old and new message formats, making the system more robust.

@@ -3,6 +3,7 @@ import { logger } from '../logger';
 import { getNonce } from '../utils';
 import { Agent } from '../agents/agent';
 import { IOperationMode } from '../modes/operationMode';
+import { llmService } from '../llm/llmService';
 
 export interface ChatMessage {
     id: string;
@@ -82,6 +83,7 @@ export class ChatPanel {
     private readonly _extensionUri: vscode.Uri;
     private readonly _disposables: vscode.Disposable[] = [];
     private _chatSession: ChatSession;
+    private _cancelTokenSource: vscode.CancellationTokenSource | undefined;
 
     public static createOrShow(
         extensionUri: vscode.Uri,
@@ -143,7 +145,9 @@ export class ChatPanel {
 
         // Handle messages from webview
         this._panel.webview.onDidReceiveMessage(async (message) => {
-            switch (message.type) {
+            const command = message.command || message.type; // Support both command and type for backward compatibility
+            logger.info(`Received message from webview: ${command}`);
+            switch (command) {
                 case 'sendMessage':
                     await this._handleMessage(message.text);
                     break;
@@ -188,8 +192,19 @@ export class ChatPanel {
                 case 'cancelOperation':
                     await this._handleCancel();
                     break;
+                case 'getProviders':
+                    logger.info('Handling getProviders request from webview');
+                    await this._handleGetProviders();
+                    break;
+                case 'getModels':
+                    logger.info('Handling getModels request from webview');
+                    await this._handleGetModels();
+                    break;
             }
         }, undefined, this._disposables);
+
+        // Send initial data to the webview
+        this._sendInitialData();
     }
 
     private async _handleExportChat(): Promise<void> {
@@ -337,11 +352,286 @@ export class ChatPanel {
         vscode.commands.executeCommand('codessa.changeModel', model);
     }
 
+    private async _handleGetProviders(): Promise<void> {
+        try {
+            // Always get all provider IDs first
+            const allProviderIds = llmService.listProviderIds();
+            logger.info(`Found ${allProviderIds.length} total providers`);
+
+            // Create a map of all providers with basic info
+            const allProviders = allProviderIds.map(id => ({
+                id: id,
+                name: id.charAt(0).toUpperCase() + id.slice(1) // Capitalize first letter
+            }));
+
+            // Try to get configured providers for better display names
+            const configuredProviders = llmService.getConfiguredProviders();
+            logger.info(`Found ${configuredProviders.length} configured providers`);
+
+            // Replace basic provider info with configured provider info where available
+            for (const configuredProvider of configuredProviders) {
+                const index = allProviders.findIndex(p => p.id === configuredProvider.providerId);
+                if (index !== -1) {
+                    allProviders[index] = {
+                        id: configuredProvider.providerId,
+                        name: configuredProvider.displayName
+                    };
+                }
+            }
+
+            logger.info(`Sending ${allProviders.length} providers to webview: ${allProviders.map(p => p.id).join(', ')}`);
+
+            // Send all providers to webview
+            this._panel.webview.postMessage({
+                command: 'providers', // Changed from 'type' to 'command'
+                providers: allProviders
+            });
+        } catch (error) {
+            logger.error('Error getting providers:', error);
+
+            // Send a fallback list of providers
+            const fallbackProviders = [
+                { id: 'ollama', name: 'Ollama' },
+                { id: 'openai', name: 'OpenAI' },
+                { id: 'anthropic', name: 'Anthropic' },
+                { id: 'googleai', name: 'Google AI' },
+                { id: 'mistralai', name: 'Mistral AI' }
+            ];
+
+            logger.info(`Sending ${fallbackProviders.length} fallback providers to webview`);
+
+            this._panel.webview.postMessage({
+                command: 'providers', // Changed from 'type' to 'command'
+                providers: fallbackProviders
+            });
+        }
+    }
+
+    private async _handleGetModels(): Promise<void> {
+        try {
+            // Get all available models from the LLM service
+            const models: Array<{id: string, name: string, provider: string}> = [];
+
+            // Get all provider IDs
+            const allProviderIds = llmService.listProviderIds();
+            logger.info(`Found ${allProviderIds.length} total providers for models`);
+
+            // Get models from each configured provider
+            const configuredProviders = llmService.getConfiguredProviders();
+            logger.info(`Found ${configuredProviders.length} configured providers for models`);
+
+            // Try to get models from configured providers
+            for (const provider of configuredProviders) {
+                try {
+                    logger.info(`Getting models for provider ${provider.providerId}`);
+                    const providerModels = await provider.listModels();
+                    logger.info(`Found ${providerModels.length} models for provider ${provider.providerId}`);
+
+                    if (providerModels.length > 0) {
+                        providerModels.forEach(model => {
+                            models.push({
+                                id: model.id,
+                                name: model.name || model.id,
+                                provider: provider.providerId
+                            });
+                        });
+                    } else {
+                        // Add default models for this provider if none were found
+                        logger.info(`No models found for ${provider.providerId}, adding defaults`);
+                        models.push(...this._getDefaultModelsForProvider(provider.providerId));
+                    }
+                } catch (err) {
+                    logger.error(`Error getting models for provider ${provider.providerId}:`, err);
+                    // Add default models for this provider if there was an error
+                    logger.info(`Adding default models for ${provider.providerId} due to error`);
+                    models.push(...this._getDefaultModelsForProvider(provider.providerId));
+                }
+            }
+
+            // For providers that aren't configured, add default models
+            for (const providerId of allProviderIds) {
+                if (!configuredProviders.some(p => p.providerId === providerId) &&
+                    !models.some(m => m.provider === providerId)) {
+                    logger.info(`Adding default models for unconfigured provider ${providerId}`);
+                    models.push(...this._getDefaultModelsForProvider(providerId));
+                }
+            }
+
+            logger.info(`Sending ${models.length} models to webview: ${models.slice(0, 5).map(m => m.id).join(', ')}${models.length > 5 ? '...' : ''}`);
+
+            // Send models to webview
+            this._panel.webview.postMessage({
+                command: 'models', // Changed from 'type' to 'command'
+                models: models
+            });
+        } catch (error) {
+            logger.error('Error getting models:', error);
+
+            // Send fallback models
+            const fallbackModels = [
+                // Ollama models
+                { id: 'llama2', name: 'Llama 2', provider: 'ollama' },
+                { id: 'mistral', name: 'Mistral', provider: 'ollama' },
+                { id: 'codellama', name: 'Code Llama', provider: 'ollama' },
+
+                // OpenAI models
+                { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', provider: 'openai' },
+                { id: 'gpt-4', name: 'GPT-4', provider: 'openai' },
+
+                // Anthropic models 
+                { id: 'claude-3-opus-20240229', name: 'Claude 3 Opus', provider: 'anthropic' },
+                { id: 'claude-3-sonnet-20240229', name: 'Claude 3 Sonnet', provider: 'anthropic' },
+
+                // Google AI models
+                { id: 'gemini-pro', name: 'Gemini Pro', provider: 'googleai' },
+
+                // Mistral AI models
+                { id: 'mistral-large', name: 'Mistral Large', provider: 'mistralai' }
+            ];
+
+            logger.info(`Sending ${fallbackModels.length} fallback models to webview`);
+
+            this._panel.webview.postMessage({
+                command: 'models', // Changed from 'type' to 'command'
+                models: fallbackModels
+            });
+        }
+    }
+
+    private _getDefaultModelsForProvider(providerId: string): Array<{id: string, name: string, provider: string}> {
+        switch (providerId) {
+            case 'ollama':
+                return [
+                    { id: 'llama2', name: 'Llama 2', provider: 'ollama' },
+                    { id: 'mistral', name: 'Mistral', provider: 'ollama' },
+                    { id: 'codellama', name: 'Code Llama', provider: 'ollama' },
+                    { id: 'phi', name: 'Phi', provider: 'ollama' }
+                ];
+            case 'openai':
+                return [
+                    { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', provider: 'openai' },
+                    { id: 'gpt-4', name: 'GPT-4', provider: 'openai' },
+                    { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', provider: 'openai' }
+                ];
+            case 'anthropic':
+                return [
+                    { id: 'claude-3-opus-20240229', name: 'Claude 3 Opus', provider: 'anthropic' },
+                    { id: 'claude-3-sonnet-20240229', name: 'Claude 3 Sonnet', provider: 'anthropic' },
+                    { id: 'claude-3-haiku-20240307', name: 'Claude 3 Haiku', provider: 'anthropic' }
+                ];
+            case 'googleai':
+                return [
+                    { id: 'gemini-pro', name: 'Gemini Pro', provider: 'googleai' },
+                    { id: 'gemini-ultra', name: 'Gemini Ultra', provider: 'googleai' }
+                ];
+            case 'mistralai':
+                return [
+                    { id: 'mistral-large', name: 'Mistral Large', provider: 'mistralai' },
+                    { id: 'mistral-medium', name: 'Mistral Medium', provider: 'mistralai' },
+                    { id: 'mistral-small', name: 'Mistral Small', provider: 'mistralai' }
+                ];
+            case 'lmstudio':
+                return [
+                    { id: 'default', name: 'Default Model', provider: 'lmstudio' }
+                ];
+            case 'openrouter':
+                return [
+                    { id: 'openai/gpt-4-turbo', name: 'GPT-4 Turbo', provider: 'openrouter' },
+                    { id: 'anthropic/claude-3-opus', name: 'Claude 3 Opus', provider: 'openrouter' }
+                ];
+            case 'huggingface':
+                return [
+                    { id: 'mistralai/Mistral-7B-Instruct-v0.2', name: 'Mistral 7B', provider: 'huggingface' }
+                ];
+            case 'deepseek':
+                return [
+                    { id: 'deepseek-coder', name: 'DeepSeek Coder', provider: 'deepseek' }
+                ];
+            case 'cohere':
+                return [
+                    { id: 'command', name: 'Command', provider: 'cohere' },
+                    { id: 'command-light', name: 'Command Light', provider: 'cohere' }
+                ];
+            default:
+                return [
+                    { id: 'default', name: 'Default Model', provider: providerId }
+                ];
+        }
+    }
+
+    private async _sendInitialData(): Promise<void> {
+        logger.info('Sending initial data to webview');
+
+        // Send current settings
+        const currentSettings = {
+            mode: this._mode.id,
+            provider: this._agent.llmConfig?.provider,
+            model: this._agent.llmConfig?.modelId
+        };
+
+        logger.info(`Sending current settings: mode=${currentSettings.mode}, provider=${currentSettings.provider}, model=${currentSettings.model}`);
+
+        this._panel.webview.postMessage({
+            command: 'currentSettings',
+            settings: currentSettings
+        });
+
+        // Wait a bit before sending providers and models to ensure the webview is ready
+        setTimeout(async () => {
+            // Send providers and models
+            logger.info('Sending providers and models to webview');
+            await this._handleGetProviders();
+
+            // Wait a bit before sending models to ensure providers are processed
+            setTimeout(async () => {
+                await this._handleGetModels();
+            }, 500);
+        }, 500);
+    }
+
     private async _handleCancel(): Promise<void> {
-        // Implement cancellation logic
+        logger.info('Cancel button clicked, attempting to cancel operation');
+
+        // Cancel the ongoing request
+        if (this._cancelTokenSource) {
+            try {
+                this._cancelTokenSource.cancel();
+                logger.info('Cancellation token cancelled');
+            } catch (error) {
+                logger.error('Error cancelling token:', error);
+            } finally {
+                this._cancelTokenSource.dispose();
+                this._cancelTokenSource = undefined;
+            }
+        } else {
+            logger.warn('No cancellation token source found to cancel');
+        }
+
+        // Add a message indicating the operation was cancelled
+        const cancelMessage: ChatMessage = {
+            id: `system_${Date.now()}`,
+            role: 'system',
+            content: 'Operation cancelled by user.',
+            timestamp: Date.now()
+        };
+        this._chatSession.addMessage(cancelMessage);
+        await this._chatSession.save();
+
+        // Update UI state immediately
         this._chatSession.setProcessing(false);
         this._update();
-        // Additional cancellation logic as needed
+
+        // Send immediate update to the webview
+        this._panel.webview.postMessage({
+            type: 'processingState',
+            isProcessing: false
+        });
+
+        // Also send the cancellation message directly
+        this._panel.webview.postMessage({
+            type: 'addMessage',
+            message: cancelMessage
+        });
     }
 
     private _update() {
@@ -368,11 +658,24 @@ export class ChatPanel {
         this._chatSession.setProcessing(true);
         this._update();
 
+        // Create a new cancellation token source for this request
+        if (this._cancelTokenSource) {
+            this._cancelTokenSource.dispose();
+        }
+        this._cancelTokenSource = new vscode.CancellationTokenSource();
+
         try {
-            // Process message with operation mode
-            const response = await this._mode.processMessage(text, this._agent, {
-                type: this._mode.defaultContextType
-            });
+            // Process message with operation mode and pass the cancellation token
+            const response = await this._mode.processMessage(
+                text,
+                this._agent,
+                {
+                    type: this._mode.defaultContextType
+                },
+                {
+                    cancellationToken: this._cancelTokenSource.token
+                }
+            );
 
             // Add assistant message
             const assistantMessage: ChatMessage = {
@@ -385,18 +688,30 @@ export class ChatPanel {
             this._chatSession.addMessage(assistantMessage);
             await this._chatSession.save();
         } catch (error) {
-            // Add error message if something went wrong
-            const errorMessage: ChatMessage = {
-                id: `error_${Date.now()}`,
-                role: 'error',
-                content: `Error: ${error instanceof Error ? error.message : String(error)}`,
-                timestamp: Date.now()
-            };
+            // Don't add error message if it was cancelled by the user
+            if (this._cancelTokenSource?.token.isCancellationRequested) {
+                logger.info('Message processing cancelled by user');
+            } else {
+                // Add error message if something went wrong
+                const errorMessage: ChatMessage = {
+                    id: `error_${Date.now()}`,
+                    role: 'error',
+                    content: `Error: ${error instanceof Error ? error.message : String(error)}`,
+                    timestamp: Date.now()
+                };
 
-            this._chatSession.addMessage(errorMessage);
-            await this._chatSession.save();
-            logger.error('Error processing message:', error);
+                this._chatSession.addMessage(errorMessage);
+                await this._chatSession.save();
+                logger.error('Error processing message:', error);
+            }
         } finally {
+            // Clean up cancellation token source
+            if (this._cancelTokenSource) {
+                this._cancelTokenSource.dispose();
+                this._cancelTokenSource = undefined;
+            }
+
+            // Reset processing state
             this._chatSession.setProcessing(false);
             this._update();
         }
@@ -408,8 +723,7 @@ export class ChatPanel {
         // Get URIs for resources
         const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'styles', 'chat.css'));
         const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'chat.js'));
-        // Use CDN for codicons instead of local file
-        const codiconsUri = vscode.Uri.parse('https://cdn.jsdelivr.net/npm/@vscode/codicons/dist/codicon.css');
+        // Codicons are loaded directly in the HTML
         const logoUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'codessa-logo.png'));
 
         const nonce = getNonce();
@@ -429,7 +743,8 @@ export class ChatPanel {
             availableProviders: [],
             currentProvider: '',
             availableModels: [],
-            currentModel: ''
+            currentModel: '',
+            username: vscode.workspace.getConfiguration('codessa').get('user.email') || 'User'
         };
 
         return `<!DOCTYPE html>

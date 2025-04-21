@@ -70,12 +70,16 @@ export interface IOperationMode {
 
     /**
      * Process a user message in this mode
+     * @param message The user message to process
+     * @param agent The agent to use for processing
+     * @param contextSource The context source to use
+     * @param additionalParams Additional parameters, including cancellationToken
      */
     processMessage(
         message: string,
         agent: Agent,
         contextSource: ContextSource,
-        additionalParams?: Record<string, any>
+        additionalParams?: Record<string, any> & { cancellationToken?: vscode.CancellationToken }
     ): Promise<string>;
 
     /**
@@ -126,12 +130,16 @@ export abstract class BaseOperationMode implements IOperationMode {
 
     /**
      * Process a user message in this mode
+     * @param message The user message to process
+     * @param agent The agent to use for processing
+     * @param contextSource The context source to use
+     * @param additionalParams Additional parameters, including cancellationToken
      */
     abstract processMessage(
         message: string,
         agent: Agent,
         contextSource: ContextSource,
-        additionalParams?: Record<string, any>
+        additionalParams?: Record<string, any> & { cancellationToken?: vscode.CancellationToken }
     ): Promise<string>;
 
     /**

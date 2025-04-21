@@ -124,7 +124,8 @@ class ChatViewProvider {
             isProcessing: this._chatSession.getProcessing(),
             mode: 'chat',
             currentProvider: '',
-            currentModel: ''
+            currentModel: '',
+            username: vscode.workspace.getConfiguration('codessa').get('user.email') || 'User'
         };
         // Serialize messages for initial state
         const serializedMessages = JSON.stringify(this._chatSession.getMessages());

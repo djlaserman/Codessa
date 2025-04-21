@@ -22,16 +22,21 @@ class ChatMode extends operationMode_1.BaseOperationMode {
      */
     async processMessage(message, agent, 
     // @ts-ignore - Parameter required by interface but not used in this implementation
-    contextSource, 
-    // @ts-ignore - Parameter required by interface but not used in this implementation
-    additionalParams) {
+    contextSource, additionalParams) {
         try {
             logger_1.logger.info(`Processing message in Chat mode: ${message}`);
             // In Chat mode, we just pass the message directly to the agent
-            const response = await agent.generate(message, this.getLLMParams(agent.getDefaultLLMParams()));
+            // Pass the cancellation token if provided
+            const llmParams = this.getLLMParams(agent.getDefaultLLMParams());
+            const response = await agent.generate(message, llmParams, additionalParams?.cancellationToken);
             return response;
         }
         catch (error) {
+            // Check if the operation was cancelled
+            if (additionalParams?.cancellationToken?.isCancellationRequested) {
+                logger_1.logger.info('Chat mode message processing cancelled by user');
+                return 'Operation cancelled by user.';
+            }
             logger_1.logger.error('Error processing message in Chat mode:', error);
             return `Error processing your message: ${error instanceof Error ? error.message : String(error)}`;
         }

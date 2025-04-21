@@ -114,7 +114,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             isProcessing: this._chatSession.getProcessing(),
             mode: 'chat',
             currentProvider: '',
-            currentModel: ''
+            currentModel: '',
+            username: vscode.workspace.getConfiguration('codessa').get('user.email') || 'User'
         };
 
         // Serialize messages for initial state
