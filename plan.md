@@ -235,3 +235,48 @@ This implementation adds several new LLM providers to the Codessa VS Code extens
 3. **Consistency**: Uniform interface across different providers
 4. **Specialization**: Access to models optimized for different tasks
 5. **Cost Management**: Options for both free and paid models
+
+## LM Studio Connection Issue Fix
+
+### Problem Analysis
+
+The error message shows that the extension is failing to fetch LM Studio models with an error:
+
+```log
+[2025-04-21T02:04:30.362Z] ERROR Failed to fetch LM Studio models:
+  Stack: AggregateError:
+```
+
+This is likely due to one of the following issues:
+
+1. LM Studio is not running locally
+2. LM Studio is running but on a different port or URL than expected
+3. There's a network connectivity issue between VS Code and LM Studio
+4. There's an issue with the error handling in the LM Studio provider code
+
+### Proposed Solution Steps
+
+1. **Improve Error Handling in LM Studio Provider**
+   - Update the `listModels` method in `lmstudioProvider.ts` to better handle connection errors
+   - Add more detailed error logging to help diagnose the issue
+   - Ensure the fallback to default model works properly
+
+2. **Add Connection Retry Logic**
+   - Implement a retry mechanism for the initial connection to LM Studio
+   - Add a timeout parameter to avoid hanging indefinitely
+
+3. **Enhance User Feedback**
+   - Provide clearer error messages to the user when LM Studio is not available
+   - Add instructions on how to start LM Studio if it's not running
+
+### LM Studio Implementation Details
+
+1. **Update LM Studio Provider**
+   - Modify the error handling in the `listModels` method
+   - Add more detailed error information in logs
+   - Ensure the fallback model is properly returned
+
+2. **Test the Changes**
+   - Test with LM Studio running and not running
+   - Verify error messages are helpful and not overwhelming
+   - Ensure the extension continues to function even if LM Studio is unavailable

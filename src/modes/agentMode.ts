@@ -43,6 +43,7 @@ export class AgentMode extends BaseOperationMode {
         message: string,
         agent: Agent,
         contextSource: ContextSource,
+        // @ts-ignore - Parameter required by interface but not used in this implementation
         additionalParams?: Record<string, any>
     ): Promise<string> {
         try {
@@ -245,7 +246,12 @@ If you encounter any issues that you cannot resolve, explain the problem clearly
     /**
      * Get the system prompt for Agent mode
      */
-    async getSystemPrompt(agent: Agent, contextSource: ContextSource): Promise<string> {
+    async getSystemPrompt(
+        // @ts-ignore - Parameter required by interface but not used in this implementation
+        agent: Agent,
+        // @ts-ignore - Parameter required by interface but not used in this implementation
+        contextSource: ContextSource
+    ): Promise<string> {
         return `
 You are an autonomous AI agent capable of completing complex tasks with minimal human intervention.
 Your goal is to work through tasks step by step, making progress independently.

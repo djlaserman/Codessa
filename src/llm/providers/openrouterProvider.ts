@@ -191,7 +191,7 @@ export class OpenRouterProvider extends BaseLLMProvider {
             const modelId = params.modelId || this.config.defaultModel || this.defaultModel;
 
             // Prepare messages for OpenRouter
-            const messages = [];
+            const messages: Array<{ role: string; content: string; name?: string; tool_call_id?: string }> = [];
 
             // Add system message if provided
             if (params.systemPrompt) {

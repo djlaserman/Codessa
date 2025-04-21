@@ -162,7 +162,12 @@ export abstract class BaseOperationMode implements IOperationMode {
     /**
      * Handle mode-specific commands
      */
-    async handleCommand(command: string, args: any[]): Promise<void> {
+    async handleCommand(
+        // @ts-ignore - Parameter required by interface but not used in this implementation
+        command: string,
+        // @ts-ignore - Parameter required by interface but not used in this implementation
+        args: any[]
+    ): Promise<void> {
         // By default, do nothing
     }
 }
@@ -224,12 +229,12 @@ export class OperationModeRegistry {
         if (this.defaultModeId && this.modes.has(this.defaultModeId)) {
             return this.modes.get(this.defaultModeId);
         }
-        
+
         // If no default mode is set, return the first mode
         if (this.modes.size > 0) {
             return this.modes.values().next().value;
         }
-        
+
         return undefined;
     }
 

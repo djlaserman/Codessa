@@ -20,7 +20,11 @@ class ChatMode extends operationMode_1.BaseOperationMode {
     /**
      * Process a user message in Chat mode
      */
-    async processMessage(message, agent, contextSource, additionalParams) {
+    async processMessage(message, agent, 
+    // @ts-ignore - Parameter required by interface but not used in this implementation
+    contextSource, 
+    // @ts-ignore - Parameter required by interface but not used in this implementation
+    additionalParams) {
         try {
             logger_1.logger.info(`Processing message in Chat mode: ${message}`);
             // In Chat mode, we just pass the message directly to the agent
@@ -45,7 +49,11 @@ class ChatMode extends operationMode_1.BaseOperationMode {
     /**
      * Get the system prompt for Chat mode
      */
-    async getSystemPrompt(agent, contextSource) {
+    async getSystemPrompt(
+    // @ts-ignore - Parameter required by interface but not used in this implementation
+    agent, 
+    // @ts-ignore - Parameter required by interface but not used in this implementation
+    contextSource) {
         return `
 You are a helpful AI assistant.
 Respond to the user's messages in a conversational manner.

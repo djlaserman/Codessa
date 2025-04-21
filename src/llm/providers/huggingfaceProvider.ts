@@ -67,7 +67,9 @@ export class HuggingFaceProvider extends BaseLLMProvider {
      */
     public async generate(
         params: LLMGenerateParams,
+        // @ts-ignore - Parameter required by interface but not used in this implementation
         cancellationToken?: vscode.CancellationToken,
+        // @ts-ignore - Parameter required by interface but not used in this implementation
         tools?: Map<string, ITool>
     ): Promise<LLMGenerateResult> {
         if (!this.client) {

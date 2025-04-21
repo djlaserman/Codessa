@@ -59,7 +59,11 @@ ${additionalParams?.stackTrace ? `Stack trace: ${additionalParams.stackTrace}` :
     /**
      * Get the system prompt for Debug mode
      */
-    async getSystemPrompt(agent, contextSource) {
+    async getSystemPrompt(
+    // @ts-ignore - Parameter required by interface but not used in this implementation
+    agent, 
+    // @ts-ignore - Parameter required by interface but not used in this implementation
+    contextSource) {
         return `
 You are an AI assistant specialized in debugging code.
 Your task is to help the user identify and fix issues in their code.

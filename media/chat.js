@@ -10,25 +10,31 @@
     let currentModel = initialState.currentModel;
     let availableProviders = initialState.availableProviders || [];
     let availableModels = initialState.availableModels || [];
+    // Add state for recording if needed
+    // let isRecording = false;
 
     // --- DOM Elements ---
     const messagesContainer = document.getElementById('chat-messages');
     const messageInput = document.getElementById('message-input');
     const btnSend = document.getElementById('btn-send');
     const btnCancel = document.getElementById('btn-cancel');
-    const btnClear = document.getElementById('btn-clear');
+    const btnClear = document.getElementById('btn-clear'); // Chat history clear
     const btnExport = document.getElementById('btn-export');
     const btnSettings = document.getElementById('btn-settings');
+    // Input Toolbar Buttons
     const btnAddContext = document.getElementById('btn-add-context');
     const btnAttachFile = document.getElementById('btn-attach-file');
     const btnAttachFolder = document.getElementById('btn-attach-folder');
     const btnUploadImage = document.getElementById('btn-upload-image');
-    const btnRecordAudio = document.getElementById('btn-record-audio');
-    const btnToggleTTS = document.getElementById('btn-toggle-tts');
+    // Buttons in specific locations
+    const btnRecordAudio = document.getElementById('btn-record-audio'); // In input-actions-main
+    const btnToggleTTS = document.getElementById('btn-toggle-tts'); // Now positioned via Flexbox next to input wrapper
+    // Secondary Input Action Buttons (Top Toolbar Right Group)
     const btnInputCopy = document.getElementById('btn-input-copy');
-    const btnInputCut = document.getElementById('btn-input-cut');
+    const btnInputCut = document.getElementById('btn-input-cut'); // Correctly referenced
     const btnInputPaste = document.getElementById('btn-input-paste');
-    const btnInputClear = document.getElementById('btn-input-clear');
+    const btnInputClear = document.getElementById('btn-input-clear'); // Input field clear
+    // Top Toolbar Dropdowns
     const modeSelector = document.getElementById('mode-selector');
     const providerSelector = document.getElementById('provider-selector');
     const modelSelector = document.getElementById('model-selector');
@@ -37,20 +43,535 @@
 
     // --- Initialization ---
     function initializeChat() {
-        messagesContainer.innerHTML = '';
+        messagesContainer.innerHTML = ''; // Clear any potential placeholders
+
+        // Add the animated background logo
+        addAnimatedBackgroundLogo();
+
         if (currentMessages.length > 0) {
-            currentMessages.forEach(msg => addMessageToUI(msg, true));
+            currentMessages.forEach(msg => addMessageToUI(msg, true)); // Pass true for initial load
             hideEmptyState();
         } else {
             showEmptyState();
         }
         populateDropdowns();
         setSelectedOptions();
-        scrollToBottom(true);
-        updateProcessingStateUI();
+        scrollToBottom(true); // Initial scroll, no animation
+        updateProcessingStateUI(); // Initial state check for buttons
         updateTTSButtonUI();
         setupEventListeners();
-        autoResizeTextarea();
+        autoResizeTextarea(); // Initial size check
+    }
+
+    // Add animated background logo to chat messages area
+    function addAnimatedBackgroundLogo() {
+        // Create the container
+        const logoContainer = document.createElement('div');
+        logoContainer.className = 'background-logo-container';
+        logoContainer.style.position = 'absolute';
+        logoContainer.style.top = '0';
+        logoContainer.style.left = '0';
+        logoContainer.style.right = '0';
+        logoContainer.style.bottom = '0';
+        logoContainer.style.display = 'flex';
+        logoContainer.style.justifyContent = 'center';
+        logoContainer.style.alignItems = 'center';
+        logoContainer.style.pointerEvents = 'none';
+        logoContainer.style.zIndex = '0';
+        logoContainer.style.overflow = 'hidden';
+        logoContainer.style.userSelect = 'none'; // Prevent selection
+
+        // Create the water effect canvas
+        const waterCanvas = document.createElement('canvas');
+        waterCanvas.className = 'water-canvas';
+        waterCanvas.style.position = 'absolute';
+        waterCanvas.style.top = '0';
+        waterCanvas.style.left = '0';
+        waterCanvas.style.width = '100%';
+        waterCanvas.style.height = '100%';
+        waterCanvas.style.opacity = '0.3';
+        waterCanvas.style.pointerEvents = 'none';
+        waterCanvas.style.zIndex = '0';
+        logoContainer.appendChild(waterCanvas);
+
+        // Create a full-height water background
+        const waterBackground = document.createElement('div');
+        waterBackground.className = 'water-background';
+        waterBackground.style.position = 'absolute';
+        waterBackground.style.top = '0';
+        waterBackground.style.left = '0';
+        waterBackground.style.right = '0';
+        waterBackground.style.bottom = '0';
+        waterBackground.style.background = 'linear-gradient(to bottom, rgba(0,122,204,0.01), rgba(0,122,204,0.03))';
+        waterBackground.style.pointerEvents = 'none';
+        waterBackground.style.zIndex = '-1';
+        logoContainer.appendChild(waterBackground);
+
+        // Create the wrapper for logo and ripples
+        const logoWrapper = document.createElement('div');
+        logoWrapper.className = 'logo-wrapper';
+        logoWrapper.style.position = 'relative';
+        logoWrapper.style.width = '300px';
+        logoWrapper.style.height = '300px';
+        logoWrapper.style.transform = 'perspective(800px) rotateX(10deg)';
+        logoWrapper.style.transformStyle = 'preserve-3d';
+
+        // Create the logo image with mesh distortion effect
+        const logoImg = document.createElement('img');
+
+        // Try to get the logo from the extension URI
+        try {
+            // This will be converted to a webview URI by VS Code
+            const logoPath = document.querySelector('.logo').src;
+            if (logoPath) {
+                logoImg.src = logoPath;
+            }
+        } catch (e) {
+            console.error('Error getting logo path:', e);
+            // Fallback to a simple circle SVG
+            logoImg.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIiBmaWxsPSJjdXJyZW50Q29sb3IiPjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjQ1IiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBmaWxsPSJub25lIi8+PC9zdmc+';
+        }
+
+        logoImg.className = 'background-logo';
+        logoImg.style.width = '100%';
+        logoImg.style.height = '100%';
+        logoImg.style.opacity = '0.15';
+        logoImg.style.filter = 'blur(1px)';
+        logoImg.style.position = 'relative';
+        logoImg.style.marginTop = '50px';
+        logoImg.style.transition = 'transform 0.5s ease-out';
+        logoImg.style.transformOrigin = 'center center';
+        logoImg.style.willChange = 'transform';
+        logoImg.style.userSelect = 'none'; // Prevent selection
+        logoImg.style.webkitUserSelect = 'none'; // For Safari
+        logoImg.style.msUserSelect = 'none'; // For IE/Edge
+        logoImg.style.pointerEvents = 'none'; // Prevent interaction
+        logoImg.setAttribute('draggable', 'false'); // Prevent dragging
+
+        // Add advanced animations via CSS
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes waterFloat {
+                0% { transform: translateY(0) rotate(-1deg) scale(0.98) skew(1deg, 1deg); }
+                25% { transform: translateY(-5px) rotate(-0.5deg) scale(1) skew(-0.5deg, 0.5deg); }
+                50% { transform: translateY(-10px) rotate(0deg) scale(1.02) skew(-1deg, -1deg); }
+                75% { transform: translateY(-5px) rotate(0.5deg) scale(1) skew(0.5deg, -0.5deg); }
+                100% { transform: translateY(0) rotate(1deg) scale(0.98) skew(1deg, 1deg); }
+            }
+
+            @keyframes waterDistort {
+                0% { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
+                25% { border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%; }
+                50% { border-radius: 40% 60% 30% 70% / 60% 40% 60% 30%; }
+                75% { border-radius: 60% 40% 70% 30% / 40% 50% 60% 50%; }
+                100% { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
+            }
+
+            @keyframes waterRipple {
+                0% {
+                    width: 0%;
+                    height: 0%;
+                    opacity: 0.5;
+                }
+                100% {
+                    width: 200%;
+                    height: 200%;
+                    opacity: 0;
+                }
+            }
+
+            @keyframes clothFold {
+                0% {
+                    transform: perspective(500px) rotateX(5deg) rotateY(2deg) translateZ(0px);
+                    filter: blur(1px);
+                }
+                25% {
+                    transform: perspective(500px) rotateX(-2deg) rotateY(-3deg) translateZ(10px);
+                    filter: blur(1.2px);
+                }
+                50% {
+                    transform: perspective(500px) rotateX(-5deg) rotateY(1deg) translateZ(5px);
+                    filter: blur(1.5px);
+                }
+                75% {
+                    transform: perspective(500px) rotateX(3deg) rotateY(3deg) translateZ(-5px);
+                    filter: blur(1.2px);
+                }
+                100% {
+                    transform: perspective(500px) rotateX(5deg) rotateY(2deg) translateZ(0px);
+                    filter: blur(1px);
+                }
+            }
+
+            .background-logo {
+                animation: waterFloat 12s ease-in-out infinite, waterDistort 15s ease-in-out infinite, clothFold 20s ease-in-out infinite;
+                transform-style: preserve-3d;
+                backface-visibility: hidden;
+                transform-origin: center center;
+                will-change: transform, border-radius, filter;
+                box-shadow: 0 0 20px rgba(0, 122, 204, 0.1);
+            }
+
+            .logo-wrapper {
+                animation: waterFloat 15s ease-in-out infinite alternate;
+                transform-style: preserve-3d;
+                will-change: transform;
+            }
+
+            .water-ripple {
+                position: absolute;
+                border-radius: 50%;
+                background: radial-gradient(circle, rgba(0,122,204,0.15) 0%, rgba(0,122,204,0) 70%);
+                transform: translate(-50%, -50%);
+                pointer-events: none;
+                z-index: 1;
+                opacity: 0;
+                animation: rippleEffect 2s ease-out forwards;
+                user-select: none;
+            }
+
+            @keyframes rippleEffect {
+                0% { transform: translate(-50%, -50%) scale(0.1); opacity: 0.5; }
+                100% { transform: translate(-50%, -50%) scale(3); opacity: 0; }
+            }
+
+            body.vscode-dark .background-logo {
+                opacity: 0.12 !important;
+                filter: blur(1px) brightness(1.5) !important;
+            }
+
+            body.vscode-dark .water-ripple {
+                background: radial-gradient(circle, rgba(100,180,255,0.15) 0%, rgba(100,180,255,0) 70%);
+            }
+
+            /* Prevent selection of all water elements */
+            .background-logo-container, .water-canvas, .logo-wrapper, .background-logo, .water-ripple {
+                user-select: none !important;
+                -webkit-user-select: none !important;
+                -moz-user-select: none !important;
+                -ms-user-select: none !important;
+                pointer-events: none !important;
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Create ripple effects
+        const ripple1 = document.createElement('div');
+        ripple1.style.position = 'absolute';
+        ripple1.style.top = '50%';
+        ripple1.style.left = '50%';
+        ripple1.style.width = '100%';
+        ripple1.style.height = '100%';
+        ripple1.style.borderRadius = '60% 40% 30% 70% / 60% 30% 70% 40%';
+        ripple1.style.background = 'transparent';
+        ripple1.style.border = '2px solid rgba(0, 122, 204, 0.15)';
+        ripple1.style.transform = 'translate(-50%, -50%)';
+        ripple1.style.animation = 'waterRipple 10s linear infinite, waterDistort 15s ease-in-out infinite';
+
+        const ripple2 = document.createElement('div');
+        ripple2.style.position = 'absolute';
+        ripple2.style.top = '50%';
+        ripple2.style.left = '50%';
+        ripple2.style.width = '80%';
+        ripple2.style.height = '80%';
+        ripple2.style.borderRadius = '40% 60% 70% 30% / 40% 40% 60% 50%';
+        ripple2.style.background = 'transparent';
+        ripple2.style.border = '2px solid rgba(0, 122, 204, 0.15)';
+        ripple2.style.transform = 'translate(-50%, -50%)';
+        ripple2.style.animation = 'waterRipple 10s linear infinite, waterDistort 15s ease-in-out infinite';
+        ripple2.style.animationDelay = '-5s';
+
+        // Assemble the elements
+        logoWrapper.appendChild(logoImg);
+        logoWrapper.appendChild(ripple1);
+        logoWrapper.appendChild(ripple2);
+        logoContainer.appendChild(logoWrapper);
+
+        // Add to the chat messages container
+        messagesContainer.appendChild(logoContainer);
+
+        // Add click event listener to create ripples
+        messagesContainer.addEventListener('click', function(e) {
+            // Only create ripples if the click is directly on the messages container
+            // or on elements that don't need interaction (like the background)
+            const clickedElement = e.target;
+
+            // Don't create ripples when clicking on interactive elements or text
+            if (clickedElement.tagName === 'BUTTON' ||
+                clickedElement.tagName === 'A' ||
+                clickedElement.tagName === 'INPUT' ||
+                clickedElement.tagName === 'TEXTAREA' ||
+                clickedElement.classList.contains('message-content') ||
+                clickedElement.closest('.message-bubble')) {
+                return;
+            }
+
+            createRippleEffect(e.clientX, e.clientY, logoContainer);
+        });
+
+        // Initialize water canvas effect
+        initWaterCanvas(waterCanvas);
+    }
+
+    // Create ripple effect at the clicked position
+    function createRippleEffect(x, y, container) {
+        const ripple = document.createElement('div');
+        ripple.className = 'water-ripple';
+
+        // Get position relative to the container
+        const rect = container.getBoundingClientRect();
+        const relX = x - rect.left;
+        const relY = y - rect.top;
+
+        ripple.style.left = relX + 'px';
+        ripple.style.top = relY + 'px';
+        ripple.style.width = '10px';
+        ripple.style.height = '10px';
+
+        container.appendChild(ripple);
+
+        // Remove the ripple after animation completes
+        setTimeout(() => {
+            if (ripple && ripple.parentNode) {
+                ripple.parentNode.removeChild(ripple);
+            }
+        }, 2000);
+    }
+
+    // Initialize water canvas effect
+    function initWaterCanvas(canvas) {
+        const ctx = canvas.getContext('2d');
+        let width, height;
+        let mouseX = 0, mouseY = 0;
+        let lastMouseX = 0, lastMouseY = 0;
+        let mouseSpeed = 0;
+        let isMouseMoving = false;
+        let mouseTimer = null;
+
+        function resizeCanvas() {
+            width = canvas.width = canvas.offsetWidth;
+            height = canvas.height = canvas.offsetHeight;
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Water surface parameters
+        const waves = [];
+        const waveCount = 5; // More waves for more complexity
+        const ripples = []; // Array to store dynamic ripples
+
+        // Initialize waves with different parameters
+        for (let i = 0; i < waveCount; i++) {
+            waves.push({
+                amplitude: 1.5 + Math.random() * 2,
+                length: width / (2 + Math.random() * 3),
+                frequency: 0.0005 + Math.random() * 0.001, // Slower for more realistic water
+                phase: Math.random() * Math.PI * 2,
+                speed: 0.5 + Math.random() * 0.5 // Variable speed for each wave
+            });
+        }
+
+        // Track mouse movement over the canvas
+        document.addEventListener('mousemove', function(e) {
+            const rect = canvas.getBoundingClientRect();
+            lastMouseX = mouseX;
+            lastMouseY = mouseY;
+            mouseX = e.clientX - rect.left;
+            mouseY = e.clientY - rect.top;
+
+            // Calculate mouse speed
+            const dx = mouseX - lastMouseX;
+            const dy = mouseY - lastMouseY;
+            mouseSpeed = Math.sqrt(dx*dx + dy*dy);
+
+            if (mouseSpeed > 5) { // Only consider significant movements
+                isMouseMoving = true;
+
+                // Create ripple at mouse position if moving fast enough
+                if (mouseSpeed > 15 && Math.random() > 0.7) {
+                    addRipple(mouseX, mouseY, 2 + mouseSpeed / 10);
+                }
+
+                // Reset the timer
+                clearTimeout(mouseTimer);
+                mouseTimer = setTimeout(() => {
+                    isMouseMoving = false;
+                }, 100);
+            }
+        });
+
+        // Add ripple to the water
+        function addRipple(x, y, strength = 3) {
+            ripples.push({
+                x: x,
+                y: y,
+                radius: 0,
+                maxRadius: 50 + Math.random() * 100,
+                strength: strength,
+                opacity: 0.5,
+                speed: 1 + Math.random() * 2
+            });
+        }
+
+        // Add click handler to create ripples
+        messagesContainer.addEventListener('click', function(e) {
+            // Only create ripples if the click is directly on the messages container
+            // or on elements that don't need interaction
+            const clickedElement = e.target;
+
+            // Don't create ripples when clicking on interactive elements or text
+            if (clickedElement.tagName === 'BUTTON' ||
+                clickedElement.tagName === 'A' ||
+                clickedElement.tagName === 'INPUT' ||
+                clickedElement.tagName === 'TEXTAREA' ||
+                clickedElement.classList.contains('message-content') ||
+                clickedElement.closest('.message-bubble')) {
+                return;
+            }
+
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            // Add multiple ripples for a more natural effect
+            addRipple(x, y, 5);
+            setTimeout(() => addRipple(x + (Math.random() * 20 - 10), y + (Math.random() * 20 - 10), 3), 100);
+            setTimeout(() => addRipple(x + (Math.random() * 30 - 15), y + (Math.random() * 30 - 15), 2), 200);
+        });
+
+        function drawWater() {
+            ctx.clearRect(0, 0, width, height);
+
+            // Update wave phases with variable speeds
+            waves.forEach(wave => {
+                wave.phase += wave.frequency * wave.speed;
+
+                // Adjust wave speed based on mouse movement
+                if (isMouseMoving) {
+                    wave.speed = 0.5 + (mouseSpeed / 50) * (Math.random() * 0.5 + 0.5);
+                } else {
+                    // Gradually return to normal speed
+                    wave.speed = wave.speed * 0.95 + (0.5 + Math.random() * 0.5) * 0.05;
+                }
+            });
+
+            // Draw multiple water layers for depth
+            for (let layer = 0; layer < 3; layer++) {
+                ctx.beginPath();
+
+                // Different starting point for each layer - cover the entire height
+                // First layer at top, second in middle, third at bottom
+                const startY = height * (layer * 0.3);
+                ctx.moveTo(0, startY);
+
+                // Draw the wave path
+                for (let x = 0; x < width; x += 3) { // Smaller step for smoother curves
+                    let y = startY;
+
+                    // Combine all waves
+                    waves.forEach((wave, index) => {
+                        // Different amplitude for each layer
+                        const layerAmplitude = wave.amplitude * (layer === 1 ? 1 : 0.5);
+                        y += Math.sin(x / wave.length + wave.phase + index) * layerAmplitude;
+                    });
+
+                    // Add ripple effects
+                    ripples.forEach(ripple => {
+                        const dx = x - ripple.x;
+                        const dy = startY - ripple.y;
+                        const distance = Math.sqrt(dx*dx + dy*dy);
+
+                        // Only affect points within the ripple radius
+                        if (distance > ripple.radius - 10 && distance < ripple.radius + 10) {
+                            // Ripple wave effect
+                            const amplitude = (ripple.strength * ripple.opacity) *
+                                             Math.sin((distance - ripple.radius) * 0.5) *
+                                             (1 - distance / ripple.maxRadius);
+                            y += amplitude;
+                        }
+                    });
+
+                    ctx.lineTo(x, y);
+                }
+
+                // Complete the water surface - different for each layer
+                if (layer < 2) {
+                    // For top and middle layers, just go to the next section
+                    const nextLayerY = height * ((layer + 1) * 0.3);
+                    ctx.lineTo(width, nextLayerY);
+                    ctx.lineTo(0, nextLayerY);
+                } else {
+                    // For bottom layer, go to bottom of canvas
+                    ctx.lineTo(width, height);
+                    ctx.lineTo(0, height);
+                }
+                ctx.closePath();
+
+                // Create gradient for water - different for each layer
+                const gradientStartY = startY;
+                const gradientEndY = (layer < 2) ? height * ((layer + 1) * 0.3) : height;
+
+                const gradient = ctx.createLinearGradient(0, gradientStartY, 0, gradientEndY);
+
+                if (layer === 0) { // Top layer (lightest)
+                    gradient.addColorStop(0, 'rgba(0, 122, 204, 0.02)');
+                    gradient.addColorStop(1, 'rgba(0, 122, 204, 0.03)');
+                } else if (layer === 1) { // Middle layer
+                    gradient.addColorStop(0, 'rgba(0, 122, 204, 0.03)');
+                    gradient.addColorStop(1, 'rgba(0, 122, 204, 0.04)');
+                } else { // Bottom layer (darkest)
+                    gradient.addColorStop(0, 'rgba(0, 122, 204, 0.04)');
+                    gradient.addColorStop(1, 'rgba(0, 122, 204, 0.02)');
+                }
+
+                ctx.fillStyle = gradient;
+                ctx.fill();
+            }
+
+            // Update and draw ripples
+            for (let i = ripples.length - 1; i >= 0; i--) {
+                const ripple = ripples[i];
+
+                // Update ripple
+                ripple.radius += ripple.speed;
+                ripple.opacity -= 0.01;
+
+                // Remove faded ripples
+                if (ripple.opacity <= 0 || ripple.radius >= ripple.maxRadius) {
+                    ripples.splice(i, 1);
+                    continue;
+                }
+
+                // Draw ripple (subtle circle)
+                ctx.beginPath();
+                ctx.arc(ripple.x, ripple.y, ripple.radius, 0, Math.PI * 2);
+                ctx.strokeStyle = `rgba(0, 122, 204, ${ripple.opacity * 0.2})`;
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+
+            requestAnimationFrame(drawWater);
+        }
+
+        drawWater();
+
+        // Occasionally add random ripples for ambient movement
+        setInterval(() => {
+            if (Math.random() > 0.7 && !isMouseMoving) {
+                const x = Math.random() * width;
+                // Generate ripples throughout the entire height
+                const y = Math.random() * height;
+                addRipple(x, y, 1 + Math.random() * 2);
+            }
+        }, 2000);
+
+        // Add initial ripples across the entire canvas
+        for (let i = 0; i < 5; i++) {
+            const x = Math.random() * width;
+            const y = Math.random() * height;
+            addRipple(x, y, 1 + Math.random() * 3);
+        }
     }
 
     // --- Dropdown Population ---

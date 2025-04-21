@@ -28,10 +28,10 @@ export class DebugMode extends BaseOperationMode {
     ): Promise<string> {
         try {
             logger.info(`Processing message in Debug mode: ${message}`);
-            
+
             // Get context content
             const contextContent = await contextManager.getContextContent(contextSource);
-            
+
             // Prepare the prompt with context and error information
             const prompt = `
 I'm debugging the following code:
@@ -43,10 +43,10 @@ The issue I'm experiencing is: ${message}
 ${additionalParams?.errorMessage ? `Error message: ${additionalParams.errorMessage}` : ''}
 ${additionalParams?.stackTrace ? `Stack trace: ${additionalParams.stackTrace}` : ''}
 `;
-            
+
             // Generate response using the agent
             const response = await agent.generate(prompt, this.getLLMParams(agent.getDefaultLLMParams()));
-            
+
             return response;
         } catch (error) {
             logger.error('Error processing message in Debug mode:', error);
@@ -68,7 +68,12 @@ ${additionalParams?.stackTrace ? `Stack trace: ${additionalParams.stackTrace}` :
     /**
      * Get the system prompt for Debug mode
      */
-    async getSystemPrompt(agent: Agent, contextSource: ContextSource): Promise<string> {
+    async getSystemPrompt(
+        // @ts-ignore - Parameter required by interface but not used in this implementation
+        agent: Agent,
+        // @ts-ignore - Parameter required by interface but not used in this implementation
+        contextSource: ContextSource
+    ): Promise<string> {
         return `
 You are an AI assistant specialized in debugging code.
 Your task is to help the user identify and fix issues in their code.

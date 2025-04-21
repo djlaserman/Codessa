@@ -56,7 +56,11 @@ class HuggingFaceProvider extends baseLLMProvider_1.BaseLLMProvider {
     /**
      * Generate text using HuggingFace
      */
-    async generate(params, cancellationToken, tools) {
+    async generate(params, 
+    // @ts-ignore - Parameter required by interface but not used in this implementation
+    cancellationToken, 
+    // @ts-ignore - Parameter required by interface but not used in this implementation
+    tools) {
         if (!this.client) {
             return { content: '', error: 'HuggingFace client not initialized' };
         }

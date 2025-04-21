@@ -21,7 +21,9 @@ class AskMode extends operationMode_1.BaseOperationMode {
     /**
      * Process a user message in Ask mode
      */
-    async processMessage(message, agent, contextSource, additionalParams) {
+    async processMessage(message, agent, contextSource, 
+    // @ts-ignore - Parameter required by interface but not used in this implementation
+    additionalParams) {
         try {
             logger_1.logger.info(`Processing message in Ask mode: ${message}`);
             // Get context content
@@ -56,7 +58,11 @@ My question is: ${message}
     /**
      * Get the system prompt for Ask mode
      */
-    async getSystemPrompt(agent, contextSource) {
+    async getSystemPrompt(
+    // @ts-ignore - Parameter required by interface but not used in this implementation
+    agent, 
+    // @ts-ignore - Parameter required by interface but not used in this implementation
+    contextSource) {
         return `
 You are an AI assistant specialized in answering questions about codebases.
 Your task is to provide clear, concise, and accurate answers to questions about the code.

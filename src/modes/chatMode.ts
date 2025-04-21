@@ -22,15 +22,17 @@ export class ChatMode extends BaseOperationMode {
     async processMessage(
         message: string,
         agent: Agent,
+        // @ts-ignore - Parameter required by interface but not used in this implementation
         contextSource: ContextSource,
+        // @ts-ignore - Parameter required by interface but not used in this implementation
         additionalParams?: Record<string, any>
     ): Promise<string> {
         try {
             logger.info(`Processing message in Chat mode: ${message}`);
-            
+
             // In Chat mode, we just pass the message directly to the agent
             const response = await agent.generate(message, this.getLLMParams(agent.getDefaultLLMParams()));
-            
+
             return response;
         } catch (error) {
             logger.error('Error processing message in Chat mode:', error);
@@ -52,7 +54,12 @@ export class ChatMode extends BaseOperationMode {
     /**
      * Get the system prompt for Chat mode
      */
-    async getSystemPrompt(agent: Agent, contextSource: ContextSource): Promise<string> {
+    async getSystemPrompt(
+        // @ts-ignore - Parameter required by interface but not used in this implementation
+        agent: Agent,
+        // @ts-ignore - Parameter required by interface but not used in this implementation
+        contextSource: ContextSource
+    ): Promise<string> {
         return `
 You are a helpful AI assistant.
 Respond to the user's messages in a conversational manner.

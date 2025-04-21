@@ -26,14 +26,15 @@ export class EditMode extends BaseOperationMode {
         message: string,
         agent: Agent,
         contextSource: ContextSource,
+        // @ts-ignore - Parameter required by interface but not used in this implementation
         additionalParams?: Record<string, any>
     ): Promise<string> {
         try {
             logger.info(`Processing message in Edit mode: ${message}`);
-            
+
             // Get context content
             const contextContent = await contextManager.getContextContent(contextSource);
-            
+
             // Prepare the prompt with context
             const prompt = `
 I need to make changes to the following code:
@@ -70,18 +71,18 @@ Format your response as follows:
 ### [File Path 2]
 ...
 `;
-            
+
             // Generate response using the agent
             const response = await agent.generate(prompt, this.getLLMParams(agent.getDefaultLLMParams()));
-            
+
             // Parse the response to extract file changes
             const fileChanges = this.parseFileChanges(response);
-            
+
             // Store pending edits for user verification
             for (const [filePath, change] of Object.entries(fileChanges)) {
                 this.pendingEdits.set(filePath, change);
             }
-            
+
             // Add verification UI to the response
             const responseWithVerification = `
 ${response}
@@ -92,7 +93,7 @@ I've analyzed the code and proposed the changes above. Would you like me to appl
 
 [Apply Changes] [Review Changes] [Cancel]
 `;
-            
+
             return responseWithVerification;
         } catch (error) {
             logger.error('Error processing message in Edit mode:', error);
@@ -105,19 +106,19 @@ I've analyzed the code and proposed the changes above. Would you like me to appl
      */
     private parseFileChanges(response: string): Record<string, { content: string, description: string }> {
         const fileChanges: Record<string, { content: string, description: string }> = {};
-        
+
         // Simple regex-based parsing (could be improved with a more robust parser)
         const fileRegex = /### \[(.*?)\][\s\S]*?\`\`\`after([\s\S]*?)\`\`\`[\s\S]*?((?=### \[)|$)/g;
         const matches = response.matchAll(fileRegex);
-        
+
         for (const match of matches) {
             const filePath = match[1].trim();
             const content = match[2].trim();
             const description = match[3]?.trim() || 'No description provided';
-            
+
             fileChanges[filePath] = { content, description };
         }
-        
+
         return fileChanges;
     }
 
@@ -129,31 +130,31 @@ I've analyzed the code and proposed the changes above. Would you like me to appl
             try {
                 // Create a URI for the file
                 const uri = vscode.Uri.file(filePath);
-                
+
                 // Read the file
                 const document = await vscode.workspace.openTextDocument(uri);
-                
+
                 // Create a WorkspaceEdit
                 const edit = new vscode.WorkspaceEdit();
-                
+
                 // Replace the entire content of the file
                 const fullRange = new vscode.Range(
                     document.positionAt(0),
                     document.positionAt(document.getText().length)
                 );
-                
+
                 edit.replace(uri, fullRange, change.content);
-                
+
                 // Apply the edit
                 await vscode.workspace.applyEdit(edit);
-                
+
                 logger.info(`Applied edit to ${filePath}`);
             } catch (error) {
                 logger.error(`Error applying edit to ${filePath}:`, error);
                 throw new Error(`Failed to apply edit to ${filePath}: ${error instanceof Error ? error.message : String(error)}`);
             }
         }
-        
+
         // Clear pending edits
         this.pendingEdits.clear();
     }
@@ -172,7 +173,12 @@ I've analyzed the code and proposed the changes above. Would you like me to appl
     /**
      * Get the system prompt for Edit mode
      */
-    async getSystemPrompt(agent: Agent, contextSource: ContextSource): Promise<string> {
+    async getSystemPrompt(
+        // @ts-ignore - Parameter required by interface but not used in this implementation
+        agent: Agent,
+        // @ts-ignore - Parameter required by interface but not used in this implementation
+        contextSource: ContextSource
+    ): Promise<string> {
         return `
 You are an AI assistant specialized in editing code.
 Your task is to help the user make changes to their codebase.
@@ -233,12 +239,15 @@ Consider potential side effects of your changes and address them in your plan.
     /**
      * Handle mode-specific commands
      */
-    async handleCommand(command: string, args: any[]): Promise<void> {
+    async handleCommand(command: string,
+        // @ts-ignore - Parameter required by interface but not used in this implementation
+        args: any[]
+    ): Promise<void> {
         switch (command) {
             case 'applyEdits':
                 await this.applyEdits();
                 break;
-            
+
             case 'reviewEdits':
                 // Open a diff view for each pending edit
                 for (const [filePath, change] of this.pendingEdits.entries()) {
@@ -246,14 +255,14 @@ Consider potential side effects of your changes and address them in your plan.
                         const uri = vscode.Uri.file(filePath);
                         const document = await vscode.workspace.openTextDocument(uri);
                         const originalContent = document.getText();
-                        
+
                         // Create a temporary file for the diff
                         const tempUri = uri.with({ scheme: 'untitled', path: `${uri.path}.new` });
                         const tempDoc = await vscode.workspace.openTextDocument(tempUri);
                         const edit = new vscode.WorkspaceEdit();
                         edit.insert(tempUri, new vscode.Position(0, 0), change.content);
                         await vscode.workspace.applyEdit(edit);
-                        
+
                         // Show diff
                         await vscode.commands.executeCommand('vscode.diff', uri, tempUri, `${filePath} (Changes)`);
                     } catch (error) {
@@ -261,7 +270,7 @@ Consider potential side effects of your changes and address them in your plan.
                     }
                 }
                 break;
-            
+
             case 'cancelEdits':
                 this.pendingEdits.clear();
                 break;

@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import type { AxiosInstance } from 'axios';
+import type { AxiosInstance, AxiosError } from 'axios';
 
 // Use require for axios to avoid TypeScript issues
 const axios = require('axios');
@@ -7,6 +7,7 @@ import { BaseLLMProvider } from './baseLLMProvider';
 import { LLMGenerateParams, LLMGenerateResult, LLMModelInfo } from '../llmProvider';
 import { ITool } from '../../tools/tool';
 import { logger } from '../../logger';
+import { showInformationMessage, showErrorMessage } from '../../ui/notifications';
 
 /**
  * Provider for LM Studio local LLM server
@@ -89,14 +90,33 @@ export class LMStudioProvider extends BaseLLMProvider {
                 });
             }
 
-            // Make the API request
-            const response = await axios.post(`${this.baseUrl}/chat/completions`, {
-                model: modelId,
-                messages: messages,
-                temperature: params.temperature || 0.7,
-                max_tokens: params.maxTokens || 1024,
-                stop: params.stopSequences || []
-            });
+            // Make the API request with retry logic
+            const response = await this.withRetry(
+                async () => {
+                    try {
+                        return await axios.post(`${this.baseUrl}/chat/completions`, {
+                            model: modelId,
+                            messages: messages,
+                            temperature: params.temperature || 0.7,
+                            max_tokens: params.maxTokens || 1024,
+                            stop: params.stopSequences || []
+                        }, { timeout: 30000 }); // 30 second timeout for generation
+                    } catch (error) {
+                        // Enhance error logging with more details
+                        const axiosError = error as AxiosError;
+                        if (axiosError.code === 'ECONNREFUSED') {
+                            logger.error(`Connection refused to LM Studio at ${this.baseUrl}. Is LM Studio running?`);
+                            throw new Error(`Connection refused to LM Studio. Please make sure LM Studio is running.`);
+                        } else if (axiosError.code === 'ETIMEDOUT' || axiosError.code === 'ESOCKETTIMEDOUT') {
+                            logger.error(`Connection to LM Studio at ${this.baseUrl} timed out.`);
+                            throw new Error(`Connection to LM Studio timed out. Please check if LM Studio is running.`);
+                        }
+                        throw error; // Re-throw for retry mechanism
+                    }
+                },
+                1, // Only retry once for generation to avoid long waits
+                1000 // Start with 1000ms delay
+            );
 
             // Extract the response content
             const content = response.data.choices[0]?.message?.content || '';
@@ -111,10 +131,24 @@ export class LMStudioProvider extends BaseLLMProvider {
                 }
             };
         } catch (error) {
-            logger.error('Error generating text with LM Studio:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            logger.error(`Error generating text with LM Studio: ${errorMessage}`);
+
+            // Show a notification to the user with instructions
+            showErrorMessage(
+                `Failed to generate text with LM Studio: ${errorMessage}`,
+                'Check LM Studio', 'Open Settings'
+            ).then(selection => {
+                if (selection === 'Check LM Studio') {
+                    vscode.env.openExternal(vscode.Uri.parse('https://lmstudio.ai/'));
+                } else if (selection === 'Open Settings') {
+                    vscode.commands.executeCommand('codessa.openProviderSettings');
+                }
+            });
+
             return {
                 content: '',
-                error: `LM Studio generation error: ${error instanceof Error ? error.message : 'Unknown error'}`
+                error: `LM Studio generation error: ${errorMessage}. Please ensure LM Studio is running with the API server enabled.`
             };
         }
     }
@@ -134,7 +168,7 @@ export class LMStudioProvider extends BaseLLMProvider {
             const modelId = params.modelId || this.config.defaultModel || this.defaultModel;
 
             // Prepare messages for LM Studio
-            const messages = [];
+            const messages: Array<{ role: string; content: string; name?: string; tool_call_id?: string }> = [];
 
             // Add system message if provided
             if (params.systemPrompt) {
@@ -155,17 +189,37 @@ export class LMStudioProvider extends BaseLLMProvider {
                 content: params.prompt
             });
 
-            // Make the streaming API request
-            const response = await axios.post(`${this.baseUrl}/chat/completions`, {
-                model: modelId,
-                messages: messages,
-                temperature: params.temperature || 0.7,
-                max_tokens: params.maxTokens || 1024,
-                stop: params.stopSequences || [],
-                stream: true
-            }, {
-                responseType: 'stream'
-            });
+            // Make the streaming API request with retry logic
+            const response = await this.withRetry(
+                async () => {
+                    try {
+                        return await axios.post(`${this.baseUrl}/chat/completions`, {
+                            model: modelId,
+                            messages: messages,
+                            temperature: params.temperature || 0.7,
+                            max_tokens: params.maxTokens || 1024,
+                            stop: params.stopSequences || [],
+                            stream: true
+                        }, {
+                            responseType: 'stream',
+                            timeout: 30000 // 30 second timeout for generation
+                        });
+                    } catch (error) {
+                        // Enhance error logging with more details
+                        const axiosError = error as AxiosError;
+                        if (axiosError.code === 'ECONNREFUSED') {
+                            logger.error(`Connection refused to LM Studio at ${this.baseUrl}. Is LM Studio running?`);
+                            throw new Error(`Connection refused to LM Studio. Please make sure LM Studio is running.`);
+                        } else if (axiosError.code === 'ETIMEDOUT' || axiosError.code === 'ESOCKETTIMEDOUT') {
+                            logger.error(`Connection to LM Studio at ${this.baseUrl} timed out.`);
+                            throw new Error(`Connection to LM Studio timed out. Please check if LM Studio is running.`);
+                        }
+                        throw error; // Re-throw for retry mechanism
+                    }
+                },
+                1, // Only retry once for streaming to avoid long waits
+                1000 // Start with 1000ms delay
+            );
 
             // Process the streaming response
             const stream = response.data;
@@ -197,9 +251,54 @@ export class LMStudioProvider extends BaseLLMProvider {
                 }
             }
         } catch (error) {
-            logger.error('Error streaming text with LM Studio:', error);
-            throw new Error(`LM Studio streaming error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            logger.error(`Error streaming text with LM Studio: ${errorMessage}`);
+
+            // Show a notification to the user with instructions
+            showErrorMessage(
+                `Failed to stream text from LM Studio: ${errorMessage}`,
+                'Check LM Studio', 'Open Settings'
+            ).then(selection => {
+                if (selection === 'Check LM Studio') {
+                    vscode.env.openExternal(vscode.Uri.parse('https://lmstudio.ai/'));
+                } else if (selection === 'Open Settings') {
+                    vscode.commands.executeCommand('codessa.openProviderSettings');
+                }
+            });
+
+            throw new Error(`LM Studio streaming error: ${errorMessage}. Please ensure LM Studio is running with the API server enabled.`);
         }
+    }
+
+    /**
+     * Helper function to retry an operation with exponential backoff
+     * @param operation The operation to retry
+     * @param maxRetries Maximum number of retries
+     * @param initialDelay Initial delay in milliseconds
+     * @returns The result of the operation
+     */
+    private async withRetry<T>(
+        operation: () => Promise<T>,
+        maxRetries: number = 2,
+        initialDelay: number = 500
+    ): Promise<T> {
+        let lastError: any;
+        let delay = initialDelay;
+
+        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+            try {
+                return await operation();
+            } catch (error) {
+                lastError = error;
+                if (attempt < maxRetries) {
+                    logger.debug(`Retry attempt ${attempt + 1}/${maxRetries} after ${delay}ms`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    delay *= 2; // Exponential backoff
+                }
+            }
+        }
+
+        throw lastError;
     }
 
     /**
@@ -213,7 +312,26 @@ export class LMStudioProvider extends BaseLLMProvider {
 
         try {
             logger.debug(`Fetching LM Studio models list from ${this.baseUrl}/models`);
-            const response = await axios.get(`${this.baseUrl}/models`);
+
+            // Use retry logic for the API call
+            const response = await this.withRetry(
+                async () => {
+                    try {
+                        return await axios.get(`${this.baseUrl}/models`, { timeout: 5000 });
+                    } catch (error) {
+                        // Enhance error logging with more details
+                        const axiosError = error as AxiosError;
+                        if (axiosError.code === 'ECONNREFUSED') {
+                            logger.error(`Connection refused to LM Studio at ${this.baseUrl}. Is LM Studio running?`);
+                            throw new Error(`Connection refused to LM Studio. Please make sure LM Studio is running at ${this.baseUrl}.`);
+                        } else if (axiosError.code === 'ETIMEDOUT' || axiosError.code === 'ESOCKETTIMEDOUT') {
+                            logger.error(`Connection to LM Studio at ${this.baseUrl} timed out.`);
+                            throw new Error(`Connection to LM Studio timed out. Please check if LM Studio is running at ${this.baseUrl}.`);
+                        }
+                        throw error; // Re-throw for retry mechanism
+                    }
+                }
+            );
 
             // LM Studio response format follows OpenAI's format
             const models = response.data?.data || [];
@@ -226,7 +344,19 @@ export class LMStudioProvider extends BaseLLMProvider {
                 contextWindow: m.context_length || 4096
             })).sort((a: LLMModelInfo, b: LLMModelInfo) => a.id.localeCompare(b.id));
         } catch (error) {
-            logger.error("Failed to fetch LM Studio models:", error);
+            // Provide more detailed error information
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            logger.error(`Failed to fetch LM Studio models: ${errorMessage}`);
+
+            // Show a notification to the user with instructions
+            showErrorMessage(
+                `Failed to connect to LM Studio: ${errorMessage}`,
+                'Open Settings'
+            ).then(selection => {
+                if (selection === 'Open Settings') {
+                    vscode.commands.executeCommand('codessa.openProviderSettings');
+                }
+            });
 
             // LM Studio might not support the /models endpoint, so return a default model
             return [{
@@ -250,31 +380,77 @@ export class LMStudioProvider extends BaseLLMProvider {
         }
 
         try {
-            // Check if we can connect to the LM Studio server
-            await axios.get(`${this.baseUrl}/models`);
+            // Check if we can connect to the LM Studio server with retry logic
+            await this.withRetry(
+                async () => {
+                    try {
+                        return await axios.get(`${this.baseUrl}/models`, { timeout: 5000 });
+                    } catch (error) {
+                        // Enhance error logging with more details
+                        const axiosError = error as AxiosError;
+                        if (axiosError.code === 'ECONNREFUSED') {
+                            throw new Error(`Connection refused. Please make sure LM Studio is running at ${this.baseUrl}.`);
+                        } else if (axiosError.code === 'ETIMEDOUT' || axiosError.code === 'ESOCKETTIMEDOUT') {
+                            throw new Error(`Connection timed out. Please check if LM Studio is running at ${this.baseUrl}.`);
+                        }
+                        throw error; // Re-throw for retry mechanism
+                    }
+                },
+                1, // Only retry once for test connection
+                500 // Start with 500ms delay
+            );
 
             return {
                 success: true,
                 message: `Successfully connected to LM Studio server at ${this.baseUrl}.`
             };
         } catch (error) {
+            logger.debug('LM Studio /models endpoint test failed, trying chat completion as fallback');
+
             // Try a simple chat completion request as fallback
             try {
-                await axios.post(`${this.baseUrl}/chat/completions`, {
-                    model: modelId,
-                    messages: [{ role: 'user', content: 'Hello' }],
-                    max_tokens: 5
-                });
+                await this.withRetry(
+                    async () => {
+                        return await axios.post(`${this.baseUrl}/chat/completions`, {
+                            model: modelId,
+                            messages: [{ role: 'user', content: 'Hello' }],
+                            max_tokens: 5
+                        }, { timeout: 5000 });
+                    },
+                    1, // Only retry once for test connection
+                    500 // Start with 500ms delay
+                );
 
                 return {
                     success: true,
-                    message: `Successfully connected to LM Studio server at ${this.baseUrl}.`
+                    message: `Successfully connected to LM Studio server at ${this.baseUrl} using chat completions.`
                 };
             } catch (secondError) {
-                logger.error('LM Studio connection test failed:', secondError);
+                // Combine both errors for better diagnostics
+                const firstErrorMsg = error instanceof Error ? error.message : 'Unknown error';
+                const secondErrorMsg = secondError instanceof Error ? secondError.message : 'Unknown error';
+
+                const errorDetails = `Failed to connect to LM Studio server at ${this.baseUrl}:\n` +
+                    `- Models endpoint error: ${firstErrorMsg}\n` +
+                    `- Chat completions endpoint error: ${secondErrorMsg}`;
+
+                logger.error('LM Studio connection test failed:', errorDetails);
+
+                // Show a notification with instructions
+                showErrorMessage(
+                    `Failed to connect to LM Studio. Is it running?`,
+                    'Check LM Studio', 'Open Settings'
+                ).then(selection => {
+                    if (selection === 'Check LM Studio') {
+                        vscode.env.openExternal(vscode.Uri.parse('https://lmstudio.ai/'));
+                    } else if (selection === 'Open Settings') {
+                        vscode.commands.executeCommand('codessa.openProviderSettings');
+                    }
+                });
+
                 return {
                     success: false,
-                    message: `Failed to connect to LM Studio server at ${this.baseUrl}: ${secondError instanceof Error ? secondError.message : 'Unknown error'}`
+                    message: `Failed to connect to LM Studio server. Please ensure LM Studio is running at ${this.baseUrl} with the API server enabled.`
                 };
             }
         }

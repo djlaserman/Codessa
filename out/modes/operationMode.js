@@ -39,7 +39,11 @@ class BaseOperationMode {
     /**
      * Handle mode-specific commands
      */
-    async handleCommand(command, args) {
+    async handleCommand(
+    // @ts-ignore - Parameter required by interface but not used in this implementation
+    command, 
+    // @ts-ignore - Parameter required by interface but not used in this implementation
+    args) {
         // By default, do nothing
     }
 }

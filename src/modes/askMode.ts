@@ -24,14 +24,15 @@ export class AskMode extends BaseOperationMode {
         message: string,
         agent: Agent,
         contextSource: ContextSource,
+        // @ts-ignore - Parameter required by interface but not used in this implementation
         additionalParams?: Record<string, any>
     ): Promise<string> {
         try {
             logger.info(`Processing message in Ask mode: ${message}`);
-            
+
             // Get context content
             const contextContent = await contextManager.getContextContent(contextSource);
-            
+
             // Prepare the prompt with context
             const prompt = `
 I'm asking about the following codebase:
@@ -40,10 +41,10 @@ ${contextContent}
 
 My question is: ${message}
 `;
-            
+
             // Generate response using the agent
             const response = await agent.generate(prompt, this.getLLMParams(agent.getDefaultLLMParams()));
-            
+
             return response;
         } catch (error) {
             logger.error('Error processing message in Ask mode:', error);
@@ -65,7 +66,12 @@ My question is: ${message}
     /**
      * Get the system prompt for Ask mode
      */
-    async getSystemPrompt(agent: Agent, contextSource: ContextSource): Promise<string> {
+    async getSystemPrompt(
+        // @ts-ignore - Parameter required by interface but not used in this implementation
+        agent: Agent,
+        // @ts-ignore - Parameter required by interface but not used in this implementation
+        contextSource: ContextSource
+    ): Promise<string> {
         return `
 You are an AI assistant specialized in answering questions about codebases.
 Your task is to provide clear, concise, and accurate answers to questions about the code.

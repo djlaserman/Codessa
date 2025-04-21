@@ -22,6 +22,7 @@
     --text-link-active: var(--vscode-textLink-activeForeground, #005a9e);
     --text-error: var(--vscode-errorForeground, #d10000);
     --accent-primary: var(--vscode-button-background, #007acc);
+    --accent-primary-rgb: 0, 122, 204; /* RGB values for accent-primary */
     --accent-primary-hover: var(--vscode-button-hoverBackground, #005a9e);
     --accent-primary-text: var(--vscode-button-foreground, #ffffff);
     --accent-secondary: var(--vscode-button-secondaryBackground, #e0e0e0);
@@ -56,6 +57,7 @@ body.vscode-dark {
     --text-link-active: var(--vscode-textLink-activeForeground, #69b4ff);
     --text-error: var(--vscode-errorForeground, #f48771);
     --accent-primary: var(--vscode-button-background, #0e639c);
+    --accent-primary-rgb: 14, 99, 156; /* RGB values for accent-primary in dark mode */
     --accent-primary-hover: var(--vscode-button-hoverBackground, #1177bb);
     --accent-primary-text: var(--vscode-button-foreground, #ffffff);
     --accent-secondary: var(--vscode-button-secondaryBackground, #3a3d41);
@@ -263,8 +265,99 @@ body.vscode-dark .code-block-header { background-color: color-mix(in srgb, var(-
     padding: var(--space-md) var(--space-lg); border-top: 1px solid var(--border-color);
     background-color: var(--bg-primary); flex-shrink: 0; position: relative;
     box-shadow: 0 -3px 8px rgba(0,0,0,0.05); z-index: 5;
+    overflow: hidden; /* Ensure the background logo doesn't overflow */
 }
 body.vscode-dark .chat-input-area { box-shadow: 0 -3px 8px rgba(0,0,0,0.15); }
+
+/* Background Logo with Water Effect */
+.background-logo-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    pointer-events: none; /* Allow clicks to pass through */
+    z-index: 0; /* Place behind other elements */
+    overflow: hidden;
+}
+
+.chat-messages .background-logo-container {
+    position: absolute; /* Absolute position in the chat area */
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 100%;
+    z-index: 0;
+}
+
+.background-logo {
+    width: 250px;
+    height: 250px;
+    opacity: 0.04; /* Very faint */
+    filter: blur(1px);
+    transform-origin: center;
+    animation: waterFloat 8s ease-in-out infinite, waterWobble 6s ease-in-out infinite;
+    position: relative;
+    margin-top: 50px; /* Push it down a bit */
+}
+
+/* Water ripple effect */
+.background-logo::before,
+.background-logo::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: transparent;
+    border: 2px solid rgba(var(--accent-primary-rgb, 0, 122, 204), 0.1);
+    transform: translate(-50%, -50%);
+    animation: waterRipple 10s linear infinite;
+}
+
+.background-logo::after {
+    animation-delay: -5s;
+    width: 80%;
+    height: 80%;
+}
+
+@keyframes waterRipple {
+    0% {
+        width: 0%;
+        height: 0%;
+        opacity: 0.5;
+    }
+    100% {
+        width: 200%;
+        height: 200%;
+        opacity: 0;
+    }
+}
+
+/* Water floating animation */
+@keyframes waterFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+/* Water wobble animation */
+@keyframes waterWobble {
+    0%, 100% { transform: rotate(-2deg) scale(1); }
+    25% { transform: rotate(0deg) scale(1.02); }
+    50% { transform: rotate(2deg) scale(1); }
+    75% { transform: rotate(0deg) scale(0.98); }
+}
+
+body.vscode-dark .background-logo {
+    opacity: 0.03; /* Even more faint in dark mode */
+    filter: blur(1.5px) brightness(1.5);
+}
 
 .typing-indicator {
     position: absolute; bottom: 100%;
@@ -279,10 +372,47 @@ body.vscode-dark .chat-input-area { box-shadow: 0 -3px 8px rgba(0,0,0,0.15); }
 
 /* Input Toolbar (Attach, Media etc. - ABOVE main input) */
 .input-toolbar {
-    display: flex; flex-wrap: wrap; gap: var(--space-sm);
-    margin-bottom: var(--space-sm); padding-left: var(--space-xs);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-sm);
+    padding: 0 var(--space-xs);
 }
-.input-toolbar .icon-button { font-size: 16px; padding: 3px; }
+
+.input-toolbar-left {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+}
+
+.input-toolbar-right {
+    display: flex;
+    justify-content: flex-end;
+    margin-left: auto;
+}
+
+.input-toolbar .icon-button {
+    font-size: 16px;
+    padding: 3px;
+}
+
+/* TTS Button in toolbar */
+#btn-toggle-tts {
+    font-size: 18px;
+    padding: 4px;
+    color: var(--text-secondary);
+}
+
+#btn-toggle-tts:hover {
+    color: var(--text-primary);
+    background-color: var(--accent-secondary-hover);
+}
+
+#btn-toggle-tts.active {
+    color: var(--accent-primary);
+    background-color: color-mix(in srgb, var(--accent-primary) 15%, transparent);
+    border-color: color-mix(in srgb, var(--accent-primary) 30%, transparent);
+}
 
 /* Input Actions Secondary (Now in Global Toolbar - styling remains similar) */
 .input-actions-secondary .icon-button {
@@ -308,6 +438,7 @@ body.vscode-dark .chat-input-area { box-shadow: 0 -3px 8px rgba(0,0,0,0.15); }
     background-color: var(--bg-tertiary); border: 1px solid var(--border-color);
     border-radius: var(--radius-md); padding: var(--space-xs) var(--space-xs) var(--space-xs) var(--space-sm);
     transition: border-color var(--transition-fast), box-shadow var(--transition-fast); position: relative;
+    width: 100%; /* Ensure the wrapper takes full width */
 }
 .input-wrapper:focus-within { border-color: var(--focus-border); box-shadow: 0 0 0 1.5px var(--focus-border); }
 
@@ -316,10 +447,21 @@ body.vscode-dark .chat-input-area { box-shadow: 0 -3px 8px rgba(0,0,0,0.15); }
     color: var(--text-primary); font-family: inherit; font-size: inherit; resize: none; outline: none;
     min-height: calc(1.6em + var(--space-sm) * 2); max-height: 250px; line-height: var(--line-height);
     overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--vscode-scrollbarSlider-background) transparent;
+    width: 100%; /* Ensure the textarea takes full width */
+    box-sizing: border-box; /* Include padding in width calculation */
 }
 #message-input::placeholder { color: var(--text-secondary); opacity: 0.7; }
 
-.input-actions-main { display: flex; align-items: flex-end; padding-bottom: var(--space-xs); }
+.input-actions-main {
+    display: flex; 
+    align-items: flex-end; 
+    padding-bottom: var(--space-xs);
+    position: absolute; /* Position absolutely */
+    right: var(--space-xs); /* Align to the right */
+    bottom: var(--space-xs); /* Align to the bottom */
+    background-color: var(--bg-tertiary); /* Match background */
+    z-index: 2; /* Ensure buttons stay above textarea */
+}
 .input-actions-main .icon-button {
     padding: var(--space-sm);
     font-size: 20px;
@@ -390,7 +532,9 @@ body.vscode-dark .chat-input-area { box-shadow: 0 -3px 8px rgba(0,0,0,0.15); }
     .chat-messages { padding: var(--space-md); }
     .chat-input-area { padding: var(--space-sm) var(--space-md); }
     .message-avatar { width: 28px; height: 28px; font-size: 16px; }
-    .input-toolbar { flex-wrap: wrap; justify-content: flex-start; }
+    .input-toolbar { flex-wrap: wrap; }
+    .input-toolbar-left { flex-wrap: wrap; justify-content: flex-start; }
+    .input-toolbar-right { margin-top: var(--space-xs); }
     .toolbar-group-right.input-actions-secondary { justify-content: space-around; }
     .input-actions-main .icon-button { font-size: 18px; padding: var(--space-xs); }
     .tts-button-side { font-size: 16px; padding: var(--space-xs); }

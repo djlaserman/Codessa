@@ -96,7 +96,7 @@ export class DeepSeekProvider extends BaseLLMProvider {
             }
 
             // Format tools if provided
-            let functions = undefined;
+            let functions: Array<{ name: string; description: string; parameters: any }> | undefined = undefined;
             if (tools && tools.size > 0) {
                 functions = Array.from(tools.values()).map(tool => ({
                     name: tool.id,
@@ -105,7 +105,7 @@ export class DeepSeekProvider extends BaseLLMProvider {
                 }));
             }
 
-            let toolChoice = undefined;
+            let toolChoice: string | undefined = undefined;
             if (functions && functions.length > 0) {
                 toolChoice = "auto";
             }
@@ -122,7 +122,7 @@ export class DeepSeekProvider extends BaseLLMProvider {
 
             // Extract the response content
             const content = response.data.choices[0]?.message?.content || '';
-            
+
             // Handle tool calls
             let toolCallRequest: LLMGenerateResult['toolCallRequest'] = undefined;
             if (response.data.choices[0]?.message?.function_call) {
@@ -180,7 +180,7 @@ export class DeepSeekProvider extends BaseLLMProvider {
             })).sort((a: LLMModelInfo, b: LLMModelInfo) => a.id.localeCompare(b.id));
         } catch (error) {
             logger.error("Failed to fetch DeepSeek models:", error);
-            
+
             // Return some default models
             return [
                 {

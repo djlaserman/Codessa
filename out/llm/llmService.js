@@ -133,13 +133,21 @@ class LLMService {
                         logger_1.logger.info(`Provider ${id} has ${models.length} models available`);
                     }
                     catch (error) {
-                        logger_1.logger.warn(`Failed to list models for provider ${id}:`, error);
+                        // Log the error but don't let it prevent the provider from being registered
+                        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+                        logger_1.logger.warn(`Failed to list models for provider ${id}: ${errorMessage}`);
+                        // Don't show notifications for Ollama and LM Studio during startup
+                        // as these are common local providers that might not be running
+                        if (id !== 'ollama' && id !== 'lmstudio') {
+                            vscode.window.showWarningMessage(`Failed to connect to ${id} provider. The provider is registered but may not work until the connection issue is resolved.`);
+                        }
                     }
                 }
             }
         }
         catch (error) {
-            logger_1.logger.warn(`Failed to initialize ${id} provider:`, error);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            logger_1.logger.warn(`Failed to initialize ${id} provider: ${errorMessage}`);
         }
     }
     /**

@@ -364,7 +364,8 @@ class ChatPanel {
         // Get URIs for resources
         const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'styles', 'chat.css'));
         const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'chat.js'));
-        const codiconsUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'media', 'codicon.css'));
+        // Use CDN for codicons instead of local file
+        const codiconsUri = vscode.Uri.parse('https://cdn.jsdelivr.net/npm/@vscode/codicons/dist/codicon.css');
         const logoUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'codessa-logo.png'));
         const nonce = (0, utils_1.getNonce)();
         // Get initial state

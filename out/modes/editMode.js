@@ -56,7 +56,9 @@ class EditMode extends operationMode_1.BaseOperationMode {
     /**
      * Process a user message in Edit mode
      */
-    async processMessage(message, agent, contextSource, additionalParams) {
+    async processMessage(message, agent, contextSource, 
+    // @ts-ignore - Parameter required by interface but not used in this implementation
+    additionalParams) {
         try {
             logger_1.logger.info(`Processing message in Edit mode: ${message}`);
             // Get context content
@@ -178,7 +180,11 @@ I've analyzed the code and proposed the changes above. Would you like me to appl
     /**
      * Get the system prompt for Edit mode
      */
-    async getSystemPrompt(agent, contextSource) {
+    async getSystemPrompt(
+    // @ts-ignore - Parameter required by interface but not used in this implementation
+    agent, 
+    // @ts-ignore - Parameter required by interface but not used in this implementation
+    contextSource) {
         return `
 You are an AI assistant specialized in editing code.
 Your task is to help the user make changes to their codebase.
@@ -233,7 +239,9 @@ Consider potential side effects of your changes and address them in your plan.
     /**
      * Handle mode-specific commands
      */
-    async handleCommand(command, args) {
+    async handleCommand(command, 
+    // @ts-ignore - Parameter required by interface but not used in this implementation
+    args) {
         switch (command) {
             case 'applyEdits':
                 await this.applyEdits();

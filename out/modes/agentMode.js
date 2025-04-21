@@ -68,7 +68,9 @@ class AgentMode extends operationMode_1.BaseOperationMode {
     /**
      * Process a user message in Agent mode
      */
-    async processMessage(message, agent, contextSource, additionalParams) {
+    async processMessage(message, agent, contextSource, 
+    // @ts-ignore - Parameter required by interface but not used in this implementation
+    additionalParams) {
         try {
             logger_1.logger.info(`Processing message in Agent mode: ${message}`);
             // Start the agent
@@ -221,7 +223,11 @@ If you encounter any issues that you cannot resolve, explain the problem clearly
     /**
      * Get the system prompt for Agent mode
      */
-    async getSystemPrompt(agent, contextSource) {
+    async getSystemPrompt(
+    // @ts-ignore - Parameter required by interface but not used in this implementation
+    agent, 
+    // @ts-ignore - Parameter required by interface but not used in this implementation
+    contextSource) {
         return `
 You are an autonomous AI agent capable of completing complex tasks with minimal human intervention.
 Your goal is to work through tasks step by step, making progress independently.
