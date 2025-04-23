@@ -37,22 +37,34 @@ exports.llmService = void 0;
 const vscode = __importStar(require("vscode"));
 const logger_1 = require("../logger");
 const config_1 = require("../config");
-const providerSettings_1 = require("./providerSettings");
+const providerManager_1 = require("./providerManager");
 // Import all providers
+// Standard API providers
 const openaiProvider_1 = require("./providers/openaiProvider");
-const ollamaProvider_1 = require("./providers/ollamaProvider");
+const anthropicProvider_1 = require("./providers/anthropicProvider");
 const googleAIProvider_1 = require("./providers/googleAIProvider");
 const mistralAIProvider_1 = require("./providers/mistralAIProvider");
-const anthropicProvider_1 = require("./providers/anthropicProvider");
-const lmstudioProvider_1 = require("./providers/lmstudioProvider");
-const openrouterProvider_1 = require("./providers/openrouterProvider");
-const huggingfaceProvider_1 = require("./providers/huggingfaceProvider");
 const cohereProvider_1 = require("./providers/cohereProvider");
 const deepseekProvider_1 = require("./providers/deepseekProvider");
-// import { AI21Provider } from './providers/ai21Provider';
-// import { AlephAlphaProvider } from './providers/alephalphaprovider';
-// import { TogetherAIProvider } from './providers/togetheraiProvider';
-// import { PerplexityAIProvider } from './providers/perplexityProvider';
+// Local and self-hosted providers
+const ollamaProvider_1 = require("./providers/ollamaProvider");
+const lmstudioProvider_1 = require("./providers/lmstudioProvider");
+// Aggregator providers
+const openrouterProvider_1 = require("./providers/openrouterProvider");
+const huggingfaceProvider_1 = require("./providers/huggingfaceProvider");
+// Code-specific model providers
+const starcoderProvider_1 = require("./providers/starcoderProvider");
+const codeLlamaProvider_1 = require("./providers/codeLlamaProvider");
+const replitProvider_1 = require("./providers/replitProvider");
+const wizardCoderProvider_1 = require("./providers/wizardCoderProvider");
+const xwinCoderProvider_1 = require("./providers/xwinCoderProvider");
+const phiProvider_1 = require("./providers/phiProvider");
+const yiCodeProvider_1 = require("./providers/yiCodeProvider");
+const codeGemmaProvider_1 = require("./providers/codeGemmaProvider");
+const santaCoderProvider_1 = require("./providers/santaCoderProvider");
+const stableCodeProvider_1 = require("./providers/stableCodeProvider");
+// Additional API providers
+const perplexityProvider_1 = require("./providers/perplexityProvider");
 /**
  * Service that manages LLM providers and model selection
  */
@@ -75,6 +87,9 @@ class LLMService {
      */
     initialize(context) {
         this.context = context;
+        logger_1.logger.info('Initializing LLM service...');
+        // Initialize the provider manager
+        providerManager_1.providerManager.getInstance(context);
         this.initializeProviders();
     }
     async initializeProviders() {
@@ -86,22 +101,32 @@ class LLMService {
         this.providers.clear();
         // Register all providers
         const providerFactories = [
-            // Register built-in providers
-            { id: 'ollama', factory: () => new ollamaProvider_1.OllamaProvider() },
-            { id: 'openai', factory: () => new openaiProvider_1.OpenAIProvider() },
-            { id: 'anthropic', factory: () => new anthropicProvider_1.AnthropicProvider() },
-            { id: 'googleai', factory: () => new googleAIProvider_1.GoogleAIProvider() },
-            { id: 'mistralai', factory: () => new mistralAIProvider_1.MistralAIProvider() },
+            // Standard API providers
+            { id: 'openai', factory: () => new openaiProvider_1.OpenAIProvider(this.context) },
+            { id: 'anthropic', factory: () => new anthropicProvider_1.AnthropicProvider(this.context) },
+            { id: 'googleai', factory: () => new googleAIProvider_1.GoogleAIProvider(this.context) },
+            { id: 'mistralai', factory: () => new mistralAIProvider_1.MistralAIProvider(this.context) },
+            { id: 'cohere', factory: () => new cohereProvider_1.CohereProvider(this.context) },
+            { id: 'deepseek', factory: () => new deepseekProvider_1.DeepSeekProvider(this.context) },
+            // Local and self-hosted providers
+            { id: 'ollama', factory: () => new ollamaProvider_1.OllamaProvider(this.context) },
             { id: 'lmstudio', factory: () => new lmstudioProvider_1.LMStudioProvider(this.context) },
+            // Aggregator providers
             { id: 'openrouter', factory: () => new openrouterProvider_1.OpenRouterProvider(this.context) },
             { id: 'huggingface', factory: () => new huggingfaceProvider_1.HuggingFaceProvider(this.context) },
-            { id: 'deepseek', factory: () => new deepseekProvider_1.DeepSeekProvider(this.context) },
-            { id: 'cohere', factory: () => new cohereProvider_1.CohereProvider(this.context) },
-            // These will be implemented later
-            // { id: 'ai21', factory: () => new AI21Provider(this.context!) },
-            // { id: 'alephalpha', factory: () => new AlephAlphaProvider(this.context!) },
-            // { id: 'togetherai', factory: () => new TogetherAIProvider(this.context!) },
-            // { id: 'perplexity', factory: () => new PerplexityAIProvider(this.context!) }
+            // Code-specific model providers
+            { id: 'starcoder', factory: () => new starcoderProvider_1.StarCoderProvider(this.context) },
+            { id: 'codellama', factory: () => new codeLlamaProvider_1.CodeLlamaProvider(this.context) },
+            { id: 'replit', factory: () => new replitProvider_1.ReplitProvider(this.context) },
+            { id: 'wizardcoder', factory: () => new wizardCoderProvider_1.WizardCoderProvider(this.context) },
+            { id: 'xwincoder', factory: () => new xwinCoderProvider_1.XwinCoderProvider(this.context) },
+            { id: 'phi', factory: () => new phiProvider_1.PhiProvider(this.context) },
+            { id: 'yicode', factory: () => new yiCodeProvider_1.YiCodeProvider(this.context) },
+            { id: 'codegemma', factory: () => new codeGemmaProvider_1.CodeGemmaProvider(this.context) },
+            { id: 'santacoder', factory: () => new santaCoderProvider_1.SantaCoderProvider(this.context) },
+            { id: 'stablecode', factory: () => new stableCodeProvider_1.StableCodeProvider(this.context) },
+            // Additional API providers
+            { id: 'perplexity', factory: () => new perplexityProvider_1.PerplexityAIProvider(this.context) }
         ];
         // Register each provider
         for (const { id, factory } of providerFactories) {
@@ -158,6 +183,10 @@ class LLMService {
             logger_1.logger.warn(`Provider with ID '${provider.providerId}' is already registered. Overwriting.`);
         }
         this.providers.set(provider.providerId, provider);
+        // Also register with the provider manager
+        if (this.context) {
+            providerManager_1.providerManager.getInstance(this.context).registerProvider(provider);
+        }
     }
     /**
      * Gets a provider by ID
@@ -189,7 +218,7 @@ class LLMService {
             return undefined;
         }
         // Get default provider ID from settings
-        const defaultProviderId = providerSettings_1.providerSettingsManager.getInstance(this.context).getDefaultProviderId();
+        const defaultProviderId = providerManager_1.providerManager.getInstance(this.context).getDefaultProviderId();
         const provider = this.providers.get(defaultProviderId);
         // If the default provider is not available or not configured, try to find another configured provider
         if (!provider || !provider.isConfigured()) {
@@ -216,9 +245,15 @@ class LLMService {
             return false;
         }
         try {
-            await providerSettings_1.providerSettingsManager.getInstance(this.context).setDefaultProviderId(providerId);
-            logger_1.logger.info(`Set default provider to ${providerId}`);
-            return true;
+            const success = await providerManager_1.providerManager.getInstance(this.context).setDefaultProviderId(providerId);
+            if (success) {
+                logger_1.logger.info(`Set default provider to ${providerId}`);
+                return true;
+            }
+            else {
+                logger_1.logger.error(`Failed to set default provider to ${providerId}`);
+                return false;
+            }
         }
         catch (error) {
             logger_1.logger.error(`Failed to set default provider to ${providerId}:`, error);

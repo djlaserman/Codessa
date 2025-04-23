@@ -182,6 +182,42 @@
       {
         "command": "codessa.openProviderSettings",
         "title": "Codessa: Configure Provider Settings"
+      },
+      {
+        "command": "codessa.openWorkflowManager",
+        "title": "Codessa: Open Workflow Manager"
+      },
+      {
+        "command": "codessa.manageMemory",
+        "title": "Codessa: Manage Memory"
+      },
+      {
+        "command": "codessa.viewMemories",
+        "title": "Codessa: View Memories"
+      },
+      {
+        "command": "codessa.clearMemories",
+        "title": "Codessa: Clear All Memories"
+      },
+      {
+        "command": "codessa.memorySettings",
+        "title": "Codessa: Memory Settings"
+      },
+      {
+        "command": "codessa.openMemoryView",
+        "title": "Codessa: Open Memory View"
+      },
+      {
+        "command": "codessa.addMemory",
+        "title": "Codessa: Add Memory"
+      },
+      {
+        "command": "codessa.chunkFile",
+        "title": "Codessa: Chunk File for Memory"
+      },
+      {
+        "command": "codessa.chunkWorkspace",
+        "title": "Codessa: Chunk Workspace for Memory"
       }
     ],
     "viewsContainers": {
@@ -330,6 +366,274 @@
           "maximum": 50,
           "description": "Maximum number of sequential tool calls an agent can make in a single run."
         },
+        "codessa.memory.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable or disable the memory system."
+        },
+        "codessa.memory.system": {
+          "type": "string",
+          "enum": [
+            "basic",
+            "codessa"
+          ],
+          "default": "codessa",
+          "description": "Memory system to use. 'basic' uses the built-in memory system, 'codessa' uses Codessa/LangGraph."
+        },
+        "codessa.memory.maxMemories": {
+          "type": "number",
+          "default": 1000,
+          "minimum": 10,
+          "maximum": 10000,
+          "description": "Maximum number of memories to store."
+        },
+        "codessa.memory.relevanceThreshold": {
+          "type": "number",
+          "default": 0.7,
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Threshold for memory relevance (0-1). Higher values mean more selective memory retrieval."
+        },
+        "codessa.memory.contextWindowSize": {
+          "type": "number",
+          "default": 5,
+          "minimum": 1,
+          "maximum": 50,
+          "description": "Number of relevant memories to include in the context window."
+        },
+        "codessa.memory.conversationHistorySize": {
+          "type": "number",
+          "default": 100,
+          "minimum": 5,
+          "maximum": 1000,
+          "description": "Maximum number of conversation messages to keep in memory."
+        },
+        "codessa.memory.vectorStore": {
+          "type": "string",
+          "enum": [
+            "memory",
+            "chroma",
+            "pinecone",
+            "weaviate",
+            "hnswlib"
+          ],
+          "default": "chroma",
+          "description": "Vector store to use for semantic memory. 'memory' uses in-memory storage, others use their respective databases."
+        },
+        "codessa.memory.vectorStore.chroma": {
+          "type": "object",
+          "properties": {
+            "directory": {
+              "type": "string",
+              "default": "./.codessa/chroma",
+              "description": "Directory to store Chroma database files."
+            },
+            "collectionName": {
+              "type": "string",
+              "default": "codessa_memories",
+              "description": "Name of the Chroma collection to use."
+            }
+          },
+          "default": {
+            "directory": "./.codessa/chroma",
+            "collectionName": "codessa_memories"
+          },
+          "description": "Configuration for Chroma vector store."
+        },
+        "codessa.memory.vectorStore.pinecone": {
+          "type": "object",
+          "properties": {
+            "apiKey": {
+              "type": "string",
+              "default": "",
+              "description": "Pinecone API key."
+            },
+            "environment": {
+              "type": "string",
+              "default": "",
+              "description": "Pinecone environment."
+            },
+            "indexName": {
+              "type": "string",
+              "default": "codessa-memories",
+              "description": "Name of the Pinecone index to use."
+            }
+          },
+          "default": {
+            "apiKey": "",
+            "environment": "",
+            "indexName": "codessa-memories"
+          },
+          "description": "Configuration for Pinecone vector store."
+        },
+        "codessa.memory.database": {
+          "type": "string",
+          "enum": [
+            "sqlite",
+            "mysql",
+            "postgres",
+            "mongodb",
+            "redis"
+          ],
+          "default": "sqlite",
+          "description": "Database to use for storing structured memory data."
+        },
+        "codessa.memory.database.sqlite": {
+          "type": "object",
+          "properties": {
+            "filename": {
+              "type": "string",
+              "default": "./.codessa/memory.db",
+              "description": "Path to SQLite database file."
+            }
+          },
+          "default": {
+            "filename": "./.codessa/memory.db"
+          },
+          "description": "Configuration for SQLite database."
+        },
+        "codessa.memory.database.mysql": {
+          "type": "object",
+          "properties": {
+            "host": {
+              "type": "string",
+              "default": "localhost",
+              "description": "MySQL server hostname."
+            },
+            "port": {
+              "type": "number",
+              "default": 3306,
+              "description": "MySQL server port."
+            },
+            "user": {
+              "type": "string",
+              "default": "root",
+              "description": "MySQL username."
+            },
+            "password": {
+              "type": "string",
+              "default": "",
+              "description": "MySQL password."
+            },
+            "database": {
+              "type": "string",
+              "default": "codessa",
+              "description": "MySQL database name."
+            },
+            "table": {
+              "type": "string",
+              "default": "memories",
+              "description": "MySQL table name for memories."
+            }
+          },
+          "default": {
+            "host": "localhost",
+            "port": 3306,
+            "user": "root",
+            "password": "",
+            "database": "codessa",
+            "table": "memories"
+          },
+          "description": "Configuration for MySQL database."
+        },
+        "codessa.memory.database.postgres": {
+          "type": "object",
+          "properties": {
+            "connectionString": {
+              "type": "string",
+              "default": "",
+              "description": "PostgreSQL connection string."
+            },
+            "schema": {
+              "type": "string",
+              "default": "codessa",
+              "description": "PostgreSQL schema to use."
+            }
+          },
+          "default": {
+            "connectionString": "",
+            "schema": "codessa"
+          },
+          "description": "Configuration for PostgreSQL database."
+        },
+        "codessa.memory.database.mongodb": {
+          "type": "object",
+          "properties": {
+            "connectionString": {
+              "type": "string",
+              "default": "",
+              "description": "MongoDB connection string."
+            },
+            "database": {
+              "type": "string",
+              "default": "codessa",
+              "description": "MongoDB database name."
+            },
+            "collection": {
+              "type": "string",
+              "default": "memories",
+              "description": "MongoDB collection name."
+            }
+          },
+          "default": {
+            "connectionString": "",
+            "database": "codessa",
+            "collection": "memories"
+          },
+          "description": "Configuration for MongoDB database."
+        },
+        "codessa.memory.database.redis": {
+          "type": "object",
+          "properties": {
+            "url": {
+              "type": "string",
+              "default": "",
+              "description": "Redis URL."
+            },
+            "keyPrefix": {
+              "type": "string",
+              "default": "codessa:",
+              "description": "Prefix for Redis keys."
+            }
+          },
+          "default": {
+            "url": "",
+            "keyPrefix": "codessa:"
+          },
+          "description": "Configuration for Redis database."
+        },
+        "codessa.memory.fileChunking": {
+          "type": "object",
+          "properties": {
+            "chunkSize": {
+              "type": "number",
+              "default": 1000,
+              "minimum": 100,
+              "maximum": 10000,
+              "description": "Size of file chunks in characters."
+            },
+            "chunkOverlap": {
+              "type": "number",
+              "default": 200,
+              "minimum": 0,
+              "maximum": 1000,
+              "description": "Overlap between chunks in characters."
+            },
+            "maxChunksPerFile": {
+              "type": "number",
+              "default": 100,
+              "minimum": 1,
+              "maximum": 1000,
+              "description": "Maximum number of chunks to extract from a single file."
+            }
+          },
+          "default": {
+            "chunkSize": 1000,
+            "chunkOverlap": 200,
+            "maxChunksPerFile": 100
+          },
+          "description": "Configuration for file chunking."
+        },
         "codessa.llm.defaultProvider": {
           "type": "string",
           "default": "ollama",
@@ -347,6 +651,11 @@
             "lmstudio": {
               "apiEndpoint": "http://localhost:1234/v1",
               "defaultModel": "local-model"
+            },
+            "gguf": {
+              "apiEndpoint": "http://localhost:8080",
+              "defaultModel": "",
+              "additionalModelDirectories": []
             },
             "openai": {
               "apiEndpoint": "https://api.openai.com/v1",
@@ -373,11 +682,62 @@
             },
             "deepseek": {
               "apiEndpoint": "https://api.deepseek.com/v1",
-              "defaultModel": "deepseek-chat"
+              "defaultModel": "deepseek-coder"
             },
             "cohere": {
               "apiEndpoint": "https://api.cohere.ai/v1",
               "defaultModel": "command"
+            },
+            "starcoder": {
+              "apiEndpoint": "https://api-inference.huggingface.co/models",
+              "defaultModel": "bigcode/starcoder2-15b"
+            },
+            "codellama": {
+              "apiEndpoint": "http://localhost:11434/api",
+              "defaultModel": "codellama:7b",
+              "endpointType": "ollama"
+            },
+            "replit": {
+              "apiEndpoint": "https://api-inference.huggingface.co/models",
+              "defaultModel": "replit/replit-code-v1-3b"
+            },
+            "wizardcoder": {
+              "apiEndpoint": "https://api-inference.huggingface.co/models",
+              "defaultModel": "WizardLM/WizardCoder-Python-34B-V1.0"
+            },
+            "xwincoder": {
+              "apiEndpoint": "https://api-inference.huggingface.co/models",
+              "defaultModel": "xwin-lm/XwinCoder-7B"
+            },
+            "phi": {
+              "apiEndpoint": "https://api-inference.huggingface.co/models",
+              "defaultModel": "microsoft/phi-3-mini-4k-instruct",
+              "endpointType": "huggingface"
+            },
+            "yicode": {
+              "apiEndpoint": "https://api-inference.huggingface.co/models",
+              "defaultModel": "01-ai/Yi-34B-Code"
+            },
+            "codegemma": {
+              "apiEndpoint": "https://api-inference.huggingface.co/models",
+              "defaultModel": "google/codegemma-7b-it"
+            },
+            "santacoder": {
+              "apiEndpoint": "https://api-inference.huggingface.co/models",
+              "defaultModel": "bigcode/santacoder"
+            },
+            "stablecode": {
+              "apiEndpoint": "https://api-inference.huggingface.co/models",
+              "defaultModel": "stabilityai/stablecode-instruct-alpha-3b"
+            },
+            "codeparrot": {
+              "apiEndpoint": "https://api-inference.huggingface.co/models",
+              "defaultModel": "codeparrot/codeparrot-small"
+            },
+            "noushermes": {
+              "apiEndpoint": "https://api-inference.huggingface.co/models",
+              "defaultModel": "NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO",
+              "endpointType": "huggingface"
             },
             "ai21": {
               "apiEndpoint": "https://api.ai21.com/studio/v1",
@@ -478,12 +838,13 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
+    "vscode:prepublish": "echo 'Skipping compilation'",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./tsconfig.dev.json",
     "lint": "eslint src --ext ts",
     "test": "node ./out/test/runTest.js"
   },
+  "packageManager": "npm@9.8.1",
   "devDependencies": {
     "@types/diff": "^5.0.9",
     "@types/highlight.js": "9.12.4",
@@ -500,13 +861,23 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.17.1",
-    "@google/generative-ai": "^0.3.0",
+
+
+
     "@mistralai/mistralai": "^0.1.3",
+    "@pinecone-database/pinecone": "5.1.1",
+    "@playwright/test": "1.52.0",
     "axios": "^1.6.7",
+    "chromadb": "^1.8.1",
+    "deepmerge": "4.3.1",
     "diff": "^5.1.0",
     "highlight.js": "11.11.1",
+    "ibm-cloud-sdk-core": "5.3.2",
+
     "marked": "15.0.8",
+    "mysql2": "^3.9.2",
     "openai": "^4.29.0",
+    "sqlite3": "^5.1.7",
     "uuid": "^9.0.1"
   }
 }

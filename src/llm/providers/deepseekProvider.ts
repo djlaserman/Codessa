@@ -13,20 +13,31 @@ const axios = require('axios');
 export class DeepSeekProvider extends BaseLLMProvider {
     readonly providerId = 'deepseek';
     readonly displayName = 'DeepSeek';
-    readonly description = 'Access DeepSeek AI models';
+    readonly description = 'Access DeepSeek AI models including DeepSeek-Coder';
     readonly website = 'https://deepseek.ai';
     readonly requiresApiKey = true;
-    readonly supportsEndpointConfiguration = false;
+    readonly supportsEndpointConfiguration = true;
     readonly defaultEndpoint = 'https://api.deepseek.com/v1';
-    readonly defaultModel = 'deepseek-chat';
+    readonly defaultModel = 'deepseek-coder';
 
     private client: any = null;
     private baseUrl: string;
 
-    constructor(context: vscode.ExtensionContext) {
+    constructor(context?: vscode.ExtensionContext) {
         super(context);
-        this.baseUrl = this.defaultEndpoint;
+        this.baseUrl = this.config.apiEndpoint || this.defaultEndpoint;
         this.initializeClient();
+
+        // Listen for configuration changes
+        vscode.workspace.onDidChangeConfiguration(e => {
+            if (e.affectsConfiguration('codessa.llm.providers')) {
+                logger.info("DeepSeek configuration changed, re-initializing client.");
+                this.loadConfig().then(() => {
+                    this.baseUrl = this.config.apiEndpoint || this.defaultEndpoint;
+                    this.initializeClient();
+                });
+            }
+        });
     }
 
     /**
@@ -45,8 +56,11 @@ export class DeepSeekProvider extends BaseLLMProvider {
                 headers: {
                     'Authorization': `Bearer ${this.config.apiKey}`,
                     'Content-Type': 'application/json'
-                }
+                },
+                timeout: 60000 // 60 seconds timeout
             });
+
+            logger.debug(`DeepSeek client initialized with endpoint: ${this.baseUrl}`);
 
             logger.info('DeepSeek client initialized');
         } catch (error) {
@@ -87,12 +101,12 @@ export class DeepSeekProvider extends BaseLLMProvider {
                     messages.push({
                         role: 'system',
                         content: params.systemPrompt
-                    });
+                    } as const);
                 }
                 messages.push({
                     role: 'user',
                     content: params.prompt
-                });
+                } as const);
             }
 
             // Format tools if provided
@@ -181,19 +195,51 @@ export class DeepSeekProvider extends BaseLLMProvider {
         } catch (error) {
             logger.error("Failed to fetch DeepSeek models:", error);
 
-            // Return some default models
+            // Return predefined models
             return [
-                {
-                    id: 'deepseek-chat',
-                    name: 'DeepSeek Chat',
-                    description: 'DeepSeek Chat model',
-                    contextWindow: 8192
-                },
+                // DeepSeek Coder models
                 {
                     id: 'deepseek-coder',
                     name: 'DeepSeek Coder',
-                    description: 'DeepSeek Coder model optimized for programming tasks',
-                    contextWindow: 16384
+                    description: 'Latest DeepSeek Coder model optimized for programming tasks',
+                    contextWindow: 16384,
+                    pricingInfo: 'API usage pricing'
+                },
+                {
+                    id: 'deepseek-coder-6.7b',
+                    name: 'DeepSeek Coder 6.7B',
+                    description: 'Smaller DeepSeek Coder model (6.7B parameters)',
+                    contextWindow: 16384,
+                    pricingInfo: 'Free (open weights)'
+                },
+                {
+                    id: 'deepseek-coder-33b',
+                    name: 'DeepSeek Coder 33B',
+                    description: 'Larger DeepSeek Coder model (33B parameters)',
+                    contextWindow: 16384,
+                    pricingInfo: 'Free (open weights)'
+                },
+                {
+                    id: 'deepseek-coder-instruct',
+                    name: 'DeepSeek Coder Instruct',
+                    description: 'Instruction-tuned DeepSeek Coder model',
+                    contextWindow: 16384,
+                    pricingInfo: 'API usage pricing'
+                },
+                // DeepSeek Chat models
+                {
+                    id: 'deepseek-chat',
+                    name: 'DeepSeek Chat',
+                    description: 'General-purpose DeepSeek Chat model',
+                    contextWindow: 8192,
+                    pricingInfo: 'API usage pricing'
+                },
+                {
+                    id: 'deepseek-llm-67b-chat',
+                    name: 'DeepSeek LLM 67B Chat',
+                    description: 'Large DeepSeek Chat model (67B parameters)',
+                    contextWindow: 8192,
+                    pricingInfo: 'API usage pricing'
                 }
             ];
         }
@@ -248,12 +294,29 @@ export class DeepSeekProvider extends BaseLLMProvider {
                 type: 'string'
             },
             {
-                id: 'defaultModel',
-                name: 'Default Model',
-                description: 'The default model to use (e.g., deepseek-chat, deepseek-coder)',
+                id: 'apiEndpoint',
+                name: 'API Endpoint',
+                description: 'The DeepSeek API endpoint (default: https://api.deepseek.com/v1)',
                 required: false,
                 type: 'string'
+            },
+            {
+                id: 'defaultModel',
+                name: 'Default Model',
+                description: 'The default model to use',
+                required: false,
+                type: 'select',
+                options: [
+                    'deepseek-coder',
+                    'deepseek-coder-6.7b',
+                    'deepseek-coder-33b',
+                    'deepseek-coder-instruct',
+                    'deepseek-chat',
+                    'deepseek-llm-67b-chat'
+                ]
             }
         ];
     }
 }
+
+

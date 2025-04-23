@@ -1,0 +1,33 @@
+2025-04-22 14:11:36.082 [error] Error: Error mutex already exists
+    at Cu.S (file:///C:/Users/djlas/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/main.js:82:18280)
+2025-04-22 14:11:36.110 [info] update#setState idle
+2025-04-22 14:12:06.115 [info] update#setState checking for updates
+2025-04-22 14:12:06.290 [info] update#setState idle
+2025-04-22 14:12:53.556 [error] Blocked vscode-webview request vscode-webview://1m58ivr8v0teatn71lqmevonup3tbvf6eldgvk2nhvv84rsrebtp/index.html?id=cdae7d36-617e-4314-83f5-936dfc6e8bb8&origin=cdae7d36-617e-4314-83f5-936dfc6e8bb8&swVersion=4&extensionId=&platform=electron&vscode-resource-base-authority=vscode-resource.vscode-cdn.net&parentOrigin=vscode-file%3A%2F%2Fvscode-app&disableServiceWorker=true
+2025-04-22 14:12:53.565 [error] Blocked vscode-webview request vscode-webview://0kckb7dvnhv393ilk6nco97q3qpvhfe3l8eg073rtp00nl228oso/index.html?id=7c3bd012-199b-4aeb-b1ff-a600d06a8b31&origin=7c3bd012-199b-4aeb-b1ff-a600d06a8b31&swVersion=4&extensionId=&platform=electron&vscode-resource-base-authority=vscode-resource.vscode-cdn.net&parentOrigin=vscode-file%3A%2F%2Fvscode-app&disableServiceWorker=true
+2025-04-22 14:12:53.771 [error] Blocked vscode-webview request vscode-webview://1memm9beq8pphbl2ti58ql1v284t4p1hph1i0sub6gtkev3rglp2/index.html?id=a90b0165-c0eb-4056-a782-2a225588608a&origin=a90b0165-c0eb-4056-a782-2a225588608a&swVersion=4&extensionId=&platform=electron&vscode-resource-base-authority=vscode-resource.vscode-cdn.net&parentOrigin=vscode-file%3A%2F%2Fvscode-app&disableServiceWorker=true
+2025-04-22 14:12:53.868 [error] Blocked vscode-webview request vscode-webview://11pn9at9sdtf91upg77p3gslit5fig0g2qa0ff6htelt7oe4sosa/index.html?id=8b11a53f-b47a-4bca-b0be-f9c32d177e80&origin=8b11a53f-b47a-4bca-b0be-f9c32d177e80&swVersion=4&extensionId=&platform=electron&vscode-resource-base-authority=vscode-resource.vscode-cdn.net&parentOrigin=vscode-file%3A%2F%2Fvscode-app&disableServiceWorker=true
+2025-04-22 14:12:54.074 [error] Blocked vscode-webview request vscode-webview://1jfcrjcc6bhe25llkdmhjmmesr866kla32iqsf5vv3cs8os8ftbs/index.html?id=91f7ff73-6251-48ba-8919-8130ca2987c3&origin=91f7ff73-6251-48ba-8919-8130ca2987c3&swVersion=4&extensionId=&platform=electron&vscode-resource-base-authority=vscode-resource.vscode-cdn.net&parentOrigin=vscode-file%3A%2F%2Fvscode-app&disableServiceWorker=true
+2025-04-22 15:12:06.131 [info] update#setState checking for updates
+2025-04-22 15:12:06.354 [info] update#setState idle
+2025-04-22 16:12:06.142 [info] update#setState checking for updates
+2025-04-22 16:12:06.388 [info] update#setState idle
+2025-04-22 17:12:06.152 [info] update#setState checking for updates
+2025-04-22 17:12:06.159 [error] #5: https://update.code.visualstudio.com/api/update/win32-x64-user/stable/17baf841131aa23349f217ca7c570c76ee87b957 - error undefined net::ERR_NAME_NOT_RESOLVED
+2025-04-22 17:12:06.164 [error] Error: net::ERR_NAME_NOT_RESOLVED
+    at SimpleURLLoaderWrapper.<anonymous> (node:electron/js2c/browser_init:2:118774)
+    at SimpleURLLoaderWrapper.emit (node:events:518:28)
+2025-04-22 17:12:06.164 [info] update#setState idle
+2025-04-22 18:12:06.165 [info] update#setState checking for updates
+2025-04-22 18:12:06.906 [info] update#setState idle
+2025-04-22 19:12:06.178 [info] update#setState checking for updates
+2025-04-22 19:12:06.423 [info] update#setState idle
+2025-04-22 20:12:06.185 [info] update#setState checking for updates
+2025-04-22 20:12:08.934 [info] update#setState idle
+2025-04-22 20:57:49.233 [info] Extension host with pid 58452 exited with code: 0, signal: unknown.
+2025-04-22 20:59:05.133 [info] Extension host with pid 46840 exited with code: 0, signal: unknown.
+2025-04-22 21:12:06.199 [info] update#setState checking for updates
+2025-04-22 21:12:08.424 [info] update#setState idle
+2025-04-22 22:12:05.017 [info] update#setState checking for updates
+2025-04-22 22:12:06.453 [info] update#setState idle
+2025-04-22 22:38:12.238 [info] Extension host with pid 57324 exited with code: 0, signal: unknown.

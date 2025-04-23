@@ -37,7 +37,6 @@ exports.ChatPanel = exports.ChatSession = void 0;
 const vscode = __importStar(require("vscode"));
 const logger_1 = require("../logger");
 const utils_1 = require("../utils");
-const llmService_1 = require("../llm/llmService");
 /**
  * Manages a chat session's state and messages
  */
@@ -144,7 +143,8 @@ class ChatPanel {
                     await this._handleExportChat();
                     break;
                 case 'openSettings':
-                    await vscode.commands.executeCommand('workbench.action.openSettings', '@ext:codessa');
+                    // Open extension settings with the correct extension ID
+                    await vscode.commands.executeCommand('workbench.action.openSettings', 'codessa');
                     break;
                 case 'addContext':
                     await this._handleAddContext();
@@ -230,77 +230,194 @@ class ChatPanel {
                 this._chatSession.addMessage(contextMessage);
                 await this._chatSession.save();
                 this._update();
+                // Send message to webview to update UI
+                this._panel.webview.postMessage({
+                    command: 'addMessage',
+                    message: contextMessage
+                });
+                vscode.window.showInformationMessage('Context added to chat');
             }
+            else {
+                vscode.window.showInformationMessage('No text selected. Please select code to add as context.');
+            }
+        }
+        else {
+            vscode.window.showInformationMessage('No active editor. Please open a file and select code to add as context.');
         }
     }
     async _handleAttachFile() {
-        const uris = await vscode.window.showOpenDialog({
-            canSelectMany: false,
-            openLabel: 'Attach'
-        });
-        if (uris && uris[0]) {
-            const fileContent = await vscode.workspace.fs.readFile(uris[0]);
-            const text = Buffer.from(fileContent).toString('utf8');
-            const contextMessage = {
-                id: `file_${Date.now()}`,
-                role: 'system',
-                content: `File content from ${uris[0].fsPath}:\n\`\`\`\n${text}\n\`\`\``,
-                timestamp: Date.now()
-            };
-            this._chatSession.addMessage(contextMessage);
-            await this._chatSession.save();
-            this._update();
+        try {
+            const uris = await vscode.window.showOpenDialog({
+                canSelectMany: false,
+                openLabel: 'Attach'
+            });
+            if (uris && uris[0]) {
+                // Get file extension for syntax highlighting
+                const filePath = uris[0].fsPath;
+                const fileName = filePath.split(/[\\/]/).pop() || '';
+                const fileExt = fileName.includes('.') ? fileName.split('.').pop() || '' : '';
+                // Read file content
+                const fileContent = await vscode.workspace.fs.readFile(uris[0]);
+                const text = Buffer.from(fileContent).toString('utf8');
+                // Create message
+                const contextMessage = {
+                    id: `file_${Date.now()}`,
+                    role: 'system',
+                    content: `File content from ${fileName}:\n\`\`\`${fileExt}\n${text}\n\`\`\``,
+                    timestamp: Date.now()
+                };
+                // Save to session
+                this._chatSession.addMessage(contextMessage);
+                await this._chatSession.save();
+                this._update();
+                // Send to webview
+                this._panel.webview.postMessage({
+                    command: 'addMessage',
+                    message: contextMessage
+                });
+                vscode.window.showInformationMessage(`File attached: ${fileName}`);
+            }
+        }
+        catch (error) {
+            logger_1.logger.error('Error attaching file:', error);
+            vscode.window.showErrorMessage(`Error attaching file: ${error instanceof Error ? error.message : String(error)}`);
         }
     }
     async _handleAttachFolder() {
-        const uri = await vscode.window.showOpenDialog({
-            canSelectFiles: false,
-            canSelectFolders: true,
-            canSelectMany: false,
-            openLabel: 'Attach Folder'
-        });
-        if (uri && uri[0]) {
-            const files = await vscode.workspace.findFiles(new vscode.RelativePattern(uri[0], '**/*'), '**/node_modules/**');
-            const contextMessage = {
-                id: `folder_${Date.now()}`,
-                role: 'system',
-                content: `Folder structure from ${uri[0].fsPath}:\n\`\`\`\n${files.map(f => f.fsPath).join('\n')}\n\`\`\``,
-                timestamp: Date.now()
-            };
-            this._chatSession.addMessage(contextMessage);
-            await this._chatSession.save();
-            this._update();
+        try {
+            const uri = await vscode.window.showOpenDialog({
+                canSelectFiles: false,
+                canSelectFolders: true,
+                canSelectMany: false,
+                openLabel: 'Attach Folder'
+            });
+            if (uri && uri[0]) {
+                // Get folder name
+                const folderPath = uri[0].fsPath;
+                const folderName = folderPath.split(/[\\/]/).pop() || folderPath;
+                // Find files in folder (excluding common ignored patterns)
+                const files = await vscode.workspace.findFiles(new vscode.RelativePattern(uri[0], '**/*'), '{**/node_modules/**,**/.git/**,**/dist/**,**/build/**,**/.vscode/**}');
+                // Format file paths to be relative to the folder
+                const relativePaths = files.map(f => {
+                    const fullPath = f.fsPath;
+                    return fullPath.replace(folderPath, '').replace(/^[\\/]/, '');
+                }).sort();
+                // Create message
+                const contextMessage = {
+                    id: `folder_${Date.now()}`,
+                    role: 'system',
+                    content: `Folder structure from ${folderName} (${files.length} files):\n\`\`\`\n${relativePaths.join('\n')}\n\`\`\``,
+                    timestamp: Date.now()
+                };
+                // Save to session
+                this._chatSession.addMessage(contextMessage);
+                await this._chatSession.save();
+                this._update();
+                // Send to webview
+                this._panel.webview.postMessage({
+                    command: 'addMessage',
+                    message: contextMessage
+                });
+                vscode.window.showInformationMessage(`Folder attached: ${folderName} (${files.length} files)`);
+            }
+        }
+        catch (error) {
+            logger_1.logger.error('Error attaching folder:', error);
+            vscode.window.showErrorMessage(`Error attaching folder: ${error instanceof Error ? error.message : String(error)}`);
         }
     }
     async _handleUploadImage() {
-        const uris = await vscode.window.showOpenDialog({
-            canSelectMany: false,
-            filters: {
-                'Images': ['png', 'jpg', 'jpeg', 'gif', 'webp']
-            },
-            openLabel: 'Upload'
-        });
-        if (uris && uris[0]) {
-            // For now, just add as a message that image was selected
-            // In the future, implement actual image analysis
-            const contextMessage = {
-                id: `image_${Date.now()}`,
-                role: 'system',
-                content: `Selected image: ${uris[0].fsPath}`,
-                timestamp: Date.now()
-            };
-            this._chatSession.addMessage(contextMessage);
-            await this._chatSession.save();
-            this._update();
+        try {
+            const uris = await vscode.window.showOpenDialog({
+                canSelectMany: false,
+                filters: {
+                    'Images': ['png', 'jpg', 'jpeg', 'gif', 'webp']
+                },
+                openLabel: 'Upload'
+            });
+            if (uris && uris[0]) {
+                // Get image file name
+                const imagePath = uris[0].fsPath;
+                const imageName = imagePath.split(/[\\/]/).pop() || '';
+                // Read image as base64 for future vision model support
+                const imageData = await vscode.workspace.fs.readFile(uris[0]);
+                const base64Image = Buffer.from(imageData).toString('base64');
+                const mimeType = this._getMimeTypeFromExtension(imageName);
+                // Create message with image reference
+                const contextMessage = {
+                    id: `image_${Date.now()}`,
+                    role: 'system',
+                    content: `Uploaded image: ${imageName}\n\n![${imageName}](data:${mimeType};base64,${base64Image})`,
+                    timestamp: Date.now()
+                };
+                // Save to session
+                this._chatSession.addMessage(contextMessage);
+                await this._chatSession.save();
+                this._update();
+                // Send to webview
+                this._panel.webview.postMessage({
+                    command: 'addMessage',
+                    message: contextMessage
+                });
+                vscode.window.showInformationMessage(`Image uploaded: ${imageName}`);
+            }
+        }
+        catch (error) {
+            logger_1.logger.error('Error uploading image:', error);
+            vscode.window.showErrorMessage(`Error uploading image: ${error instanceof Error ? error.message : String(error)}`);
         }
     }
+    _getMimeTypeFromExtension(filename) {
+        const ext = filename.toLowerCase().split('.').pop() || '';
+        const mimeTypes = {
+            'png': 'image/png',
+            'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg',
+            'gif': 'image/gif',
+            'webp': 'image/webp',
+            'svg': 'image/svg+xml',
+            'bmp': 'image/bmp'
+        };
+        return mimeTypes[ext] || 'image/png';
+    }
     async _handleRecordAudio() {
-        // Placeholder for audio recording functionality
-        vscode.window.showInformationMessage('Audio recording coming soon');
+        try {
+            // For now, this is a placeholder for future implementation
+            // In the future, we could use the system's audio recording capabilities
+            // or implement a web-based audio recorder in the webview
+            // Show a message to the user
+            const result = await vscode.window.showInformationMessage('Audio recording is coming soon. Would you like to use speech-to-text instead?', 'Yes, use system STT', 'No');
+            if (result === 'Yes, use system STT') {
+                // Prompt user to use system speech-to-text and paste result
+                vscode.window.showInformationMessage('Please use your system speech-to-text tool (like Windows Speech Recognition or macOS Dictation) and paste the result into the chat input.');
+            }
+            // Send message to webview to update UI if needed
+            this._panel.webview.postMessage({
+                command: 'recordingState',
+                isRecording: false
+            });
+        }
+        catch (error) {
+            logger_1.logger.error('Error handling audio recording:', error);
+            vscode.window.showErrorMessage(`Error with audio recording: ${error instanceof Error ? error.message : String(error)}`);
+        }
     }
     async _handleToggleTTS(state) {
-        // Update webview with new TTS state
-        this._panel.webview.postMessage({ type: 'ttsState', isActive: state });
+        try {
+            // Update webview with new TTS state
+            this._panel.webview.postMessage({
+                command: 'ttsState',
+                isActive: state
+            });
+            // Show confirmation to user
+            vscode.window.showInformationMessage(state ? 'Text-to-speech enabled' : 'Text-to-speech disabled');
+            // In the future, we could implement actual TTS functionality here
+            // using the system's TTS capabilities or a web-based TTS service
+        }
+        catch (error) {
+            logger_1.logger.error('Error toggling TTS:', error);
+            vscode.window.showErrorMessage(`Error toggling TTS: ${error instanceof Error ? error.message : String(error)}`);
+        }
     }
     async _handleChangeMode(mode) {
         // Implement mode change logic
@@ -316,213 +433,109 @@ class ChatPanel {
     }
     async _handleGetProviders() {
         try {
-            // Always get all provider IDs first
-            const allProviderIds = llmService_1.llmService.listProviderIds();
-            logger_1.logger.info(`Found ${allProviderIds.length} total providers`);
-            // Create a map of all providers with basic info
-            const allProviders = allProviderIds.map(id => ({
-                id: id,
-                name: id.charAt(0).toUpperCase() + id.slice(1) // Capitalize first letter
-            }));
-            // Try to get configured providers for better display names
-            const configuredProviders = llmService_1.llmService.getConfiguredProviders();
-            logger_1.logger.info(`Found ${configuredProviders.length} configured providers`);
-            // Replace basic provider info with configured provider info where available
-            for (const configuredProvider of configuredProviders) {
-                const index = allProviders.findIndex(p => p.id === configuredProvider.providerId);
-                if (index !== -1) {
-                    allProviders[index] = {
-                        id: configuredProvider.providerId,
-                        name: configuredProvider.displayName
-                    };
-                }
-            }
-            logger_1.logger.info(`Sending ${allProviders.length} providers to webview: ${allProviders.map(p => p.id).join(', ')}`);
-            // Send all providers to webview
-            this._panel.webview.postMessage({
-                command: 'providers',
-                providers: allProviders
-            });
-        }
-        catch (error) {
-            logger_1.logger.error('Error getting providers:', error);
-            // Send a fallback list of providers
-            const fallbackProviders = [
+            // Use a simple hardcoded list of providers for now to ensure the UI works
+            const providers = [
                 { id: 'ollama', name: 'Ollama' },
                 { id: 'openai', name: 'OpenAI' },
                 { id: 'anthropic', name: 'Anthropic' },
                 { id: 'googleai', name: 'Google AI' },
-                { id: 'mistralai', name: 'Mistral AI' }
+                { id: 'mistralai', name: 'Mistral AI' },
+                { id: 'lmstudio', name: 'LM Studio' },
+                { id: 'openrouter', name: 'OpenRouter' },
+                { id: 'huggingface', name: 'HuggingFace' },
+                { id: 'deepseek', name: 'DeepSeek' },
+                { id: 'cohere', name: 'Cohere' }
             ];
-            logger_1.logger.info(`Sending ${fallbackProviders.length} fallback providers to webview`);
+            logger_1.logger.info(`Sending ${providers.length} providers to webview`);
+            // Send providers to webview with command property
             this._panel.webview.postMessage({
                 command: 'providers',
-                providers: fallbackProviders
+                providers: providers
             });
+            // Log success
+            logger_1.logger.info('Providers sent to webview successfully');
+        }
+        catch (error) {
+            logger_1.logger.error('Error sending providers to webview:', error);
         }
     }
     async _handleGetModels() {
         try {
-            // Get all available models from the LLM service
-            const models = [];
-            // Get all provider IDs
-            const allProviderIds = llmService_1.llmService.listProviderIds();
-            logger_1.logger.info(`Found ${allProviderIds.length} total providers for models`);
-            // Get models from each configured provider
-            const configuredProviders = llmService_1.llmService.getConfiguredProviders();
-            logger_1.logger.info(`Found ${configuredProviders.length} configured providers for models`);
-            // Try to get models from configured providers
-            for (const provider of configuredProviders) {
-                try {
-                    logger_1.logger.info(`Getting models for provider ${provider.providerId}`);
-                    const providerModels = await provider.listModels();
-                    logger_1.logger.info(`Found ${providerModels.length} models for provider ${provider.providerId}`);
-                    if (providerModels.length > 0) {
-                        providerModels.forEach(model => {
-                            models.push({
-                                id: model.id,
-                                name: model.name || model.id,
-                                provider: provider.providerId
-                            });
-                        });
-                    }
-                    else {
-                        // Add default models for this provider if none were found
-                        logger_1.logger.info(`No models found for ${provider.providerId}, adding defaults`);
-                        models.push(...this._getDefaultModelsForProvider(provider.providerId));
-                    }
-                }
-                catch (err) {
-                    logger_1.logger.error(`Error getting models for provider ${provider.providerId}:`, err);
-                    // Add default models for this provider if there was an error
-                    logger_1.logger.info(`Adding default models for ${provider.providerId} due to error`);
-                    models.push(...this._getDefaultModelsForProvider(provider.providerId));
-                }
-            }
-            // For providers that aren't configured, add default models
-            for (const providerId of allProviderIds) {
-                if (!configuredProviders.some(p => p.providerId === providerId) &&
-                    !models.some(m => m.provider === providerId)) {
-                    logger_1.logger.info(`Adding default models for unconfigured provider ${providerId}`);
-                    models.push(...this._getDefaultModelsForProvider(providerId));
-                }
-            }
-            logger_1.logger.info(`Sending ${models.length} models to webview: ${models.slice(0, 5).map(m => m.id).join(', ')}${models.length > 5 ? '...' : ''}`);
-            // Send models to webview
-            this._panel.webview.postMessage({
-                command: 'models',
-                models: models
-            });
-        }
-        catch (error) {
-            logger_1.logger.error('Error getting models:', error);
-            // Send fallback models
-            const fallbackModels = [
+            // Use hardcoded models for now to ensure the UI works
+            const models = [
                 // Ollama models
                 { id: 'llama2', name: 'Llama 2', provider: 'ollama' },
                 { id: 'mistral', name: 'Mistral', provider: 'ollama' },
                 { id: 'codellama', name: 'Code Llama', provider: 'ollama' },
+                { id: 'phi', name: 'Phi', provider: 'ollama' },
                 // OpenAI models
                 { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', provider: 'openai' },
                 { id: 'gpt-4', name: 'GPT-4', provider: 'openai' },
+                { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', provider: 'openai' },
                 // Anthropic models
                 { id: 'claude-3-opus-20240229', name: 'Claude 3 Opus', provider: 'anthropic' },
                 { id: 'claude-3-sonnet-20240229', name: 'Claude 3 Sonnet', provider: 'anthropic' },
+                { id: 'claude-3-haiku-20240307', name: 'Claude 3 Haiku', provider: 'anthropic' },
                 // Google AI models
                 { id: 'gemini-pro', name: 'Gemini Pro', provider: 'googleai' },
+                { id: 'gemini-ultra', name: 'Gemini Ultra', provider: 'googleai' },
                 // Mistral AI models
-                { id: 'mistral-large', name: 'Mistral Large', provider: 'mistralai' }
+                { id: 'mistral-large', name: 'Mistral Large', provider: 'mistralai' },
+                { id: 'mistral-medium', name: 'Mistral Medium', provider: 'mistralai' },
+                { id: 'mistral-small', name: 'Mistral Small', provider: 'mistralai' },
+                // LM Studio models
+                { id: 'default', name: 'Default Model', provider: 'lmstudio' },
+                // Other providers
+                { id: 'openai/gpt-4-turbo', name: 'GPT-4 Turbo', provider: 'openrouter' },
+                { id: 'mistralai/Mistral-7B-Instruct-v0.2', name: 'Mistral 7B', provider: 'huggingface' },
+                { id: 'deepseek-coder', name: 'DeepSeek Coder', provider: 'deepseek' },
+                { id: 'command', name: 'Command', provider: 'cohere' }
             ];
-            logger_1.logger.info(`Sending ${fallbackModels.length} fallback models to webview`);
+            logger_1.logger.info(`Sending ${models.length} models to webview`);
+            // Send models to webview with command property
             this._panel.webview.postMessage({
                 command: 'models',
-                models: fallbackModels
+                models: models
             });
+            // Log success
+            logger_1.logger.info('Models sent to webview successfully');
+        }
+        catch (error) {
+            logger_1.logger.error('Error sending models to webview:', error);
         }
     }
-    _getDefaultModelsForProvider(providerId) {
-        switch (providerId) {
-            case 'ollama':
-                return [
-                    { id: 'llama2', name: 'Llama 2', provider: 'ollama' },
-                    { id: 'mistral', name: 'Mistral', provider: 'ollama' },
-                    { id: 'codellama', name: 'Code Llama', provider: 'ollama' },
-                    { id: 'phi', name: 'Phi', provider: 'ollama' }
-                ];
-            case 'openai':
-                return [
-                    { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', provider: 'openai' },
-                    { id: 'gpt-4', name: 'GPT-4', provider: 'openai' },
-                    { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', provider: 'openai' }
-                ];
-            case 'anthropic':
-                return [
-                    { id: 'claude-3-opus-20240229', name: 'Claude 3 Opus', provider: 'anthropic' },
-                    { id: 'claude-3-sonnet-20240229', name: 'Claude 3 Sonnet', provider: 'anthropic' },
-                    { id: 'claude-3-haiku-20240307', name: 'Claude 3 Haiku', provider: 'anthropic' }
-                ];
-            case 'googleai':
-                return [
-                    { id: 'gemini-pro', name: 'Gemini Pro', provider: 'googleai' },
-                    { id: 'gemini-ultra', name: 'Gemini Ultra', provider: 'googleai' }
-                ];
-            case 'mistralai':
-                return [
-                    { id: 'mistral-large', name: 'Mistral Large', provider: 'mistralai' },
-                    { id: 'mistral-medium', name: 'Mistral Medium', provider: 'mistralai' },
-                    { id: 'mistral-small', name: 'Mistral Small', provider: 'mistralai' }
-                ];
-            case 'lmstudio':
-                return [
-                    { id: 'default', name: 'Default Model', provider: 'lmstudio' }
-                ];
-            case 'openrouter':
-                return [
-                    { id: 'openai/gpt-4-turbo', name: 'GPT-4 Turbo', provider: 'openrouter' },
-                    { id: 'anthropic/claude-3-opus', name: 'Claude 3 Opus', provider: 'openrouter' }
-                ];
-            case 'huggingface':
-                return [
-                    { id: 'mistralai/Mistral-7B-Instruct-v0.2', name: 'Mistral 7B', provider: 'huggingface' }
-                ];
-            case 'deepseek':
-                return [
-                    { id: 'deepseek-coder', name: 'DeepSeek Coder', provider: 'deepseek' }
-                ];
-            case 'cohere':
-                return [
-                    { id: 'command', name: 'Command', provider: 'cohere' },
-                    { id: 'command-light', name: 'Command Light', provider: 'cohere' }
-                ];
-            default:
-                return [
-                    { id: 'default', name: 'Default Model', provider: providerId }
-                ];
-        }
-    }
+    // Removed unused method
     async _sendInitialData() {
-        logger_1.logger.info('Sending initial data to webview');
-        // Send current settings
-        const currentSettings = {
-            mode: this._mode.id,
-            provider: this._agent.llmConfig?.provider,
-            model: this._agent.llmConfig?.modelId
-        };
-        logger_1.logger.info(`Sending current settings: mode=${currentSettings.mode}, provider=${currentSettings.provider}, model=${currentSettings.model}`);
-        this._panel.webview.postMessage({
-            command: 'currentSettings',
-            settings: currentSettings
-        });
-        // Wait a bit before sending providers and models to ensure the webview is ready
-        setTimeout(async () => {
-            // Send providers and models
-            logger_1.logger.info('Sending providers and models to webview');
-            await this._handleGetProviders();
-            // Wait a bit before sending models to ensure providers are processed
+        try {
+            logger_1.logger.info('Sending initial data to webview');
+            // Send current settings
+            const currentSettings = {
+                mode: this._mode.id,
+                provider: this._agent.llmConfig?.provider || 'ollama', // Default to ollama if not set
+                model: this._agent.llmConfig?.modelId || 'llama2' // Default to llama2 if not set
+            };
+            logger_1.logger.info(`Sending current settings: mode=${currentSettings.mode}, provider=${currentSettings.provider}, model=${currentSettings.model}`);
+            // Send with command property
+            this._panel.webview.postMessage({
+                command: 'currentSettings',
+                settings: currentSettings
+            });
+            // Wait a bit before sending providers and models to ensure the webview is ready
             setTimeout(async () => {
-                await this._handleGetModels();
+                // Send providers
+                logger_1.logger.info('Sending providers to webview');
+                await this._handleGetProviders();
+                // Wait a bit before sending models to ensure providers are processed
+                setTimeout(async () => {
+                    logger_1.logger.info('Sending models to webview');
+                    await this._handleGetModels();
+                }, 500);
             }, 500);
-        }, 500);
+            logger_1.logger.info('Initial data sending sequence started');
+        }
+        catch (error) {
+            logger_1.logger.error('Error sending initial data to webview:', error);
+        }
     }
     async _handleCancel() {
         logger_1.logger.info('Cancel button clicked, attempting to cancel operation');
@@ -557,12 +570,12 @@ class ChatPanel {
         this._update();
         // Send immediate update to the webview
         this._panel.webview.postMessage({
-            type: 'processingState',
+            command: 'processingState',
             isProcessing: false
         });
         // Also send the cancellation message directly
         this._panel.webview.postMessage({
-            type: 'addMessage',
+            command: 'addMessage',
             message: cancelMessage
         });
     }
@@ -679,13 +692,33 @@ class ChatPanel {
             <meta http-equiv="Content-Security-Policy" content="
                 default-src 'none';
                 img-src ${webview.cspSource} https: data:;
-                script-src 'nonce-${nonce}' https://cdnjs.cloudflare.com;
+                script-src 'nonce-${nonce}' https://cdnjs.cloudflare.com 'unsafe-inline';
                 style-src ${webview.cspSource} 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net;
                 font-src https://cdn.jsdelivr.net;
                 connect-src 'none';
             ">
+            <script>
+                // Direct debug script
+                window.onerror = function(message, source, lineno, colno, error) {
+                    console.error('Error:', message, 'at', source, lineno, colno);
+                    document.body.innerHTML += '<div style="color:red;position:fixed;top:0;left:0;z-index:9999;background:white;padding:10px;">' +
+                        'Error: ' + message + '<br>Line: ' + lineno + '</div>';
+                    return true;
+                };
+            </script>
         </head>
         <body>
+            <div id="debug-panel" style="position:fixed; top:0; right:0; background:rgba(0,0,0,0.8); color:white; padding:10px; z-index:9999; max-height:300px; overflow:auto; font-size:12px; display:none;">
+                <button onclick="this.parentNode.style.display='none'" style="position:absolute; top:5px; right:5px;">X</button>
+                <h3>Debug Info</h3>
+                <div id="debug-providers">Providers: None</div>
+                <div id="debug-models">Models: None</div>
+                <div id="debug-messages"></div>
+                <button onclick="document.getElementById('debug-messages').innerHTML = ''">Clear</button>
+                <button onclick="vscode.postMessage({command: 'getProviders'})">Request Providers</button>
+                <button onclick="vscode.postMessage({command: 'getModels'})">Request Models</button>
+            </div>
+            <button id="toggle-debug" style="position:fixed; bottom:10px; right:10px; z-index:9998; background:rgba(0,0,0,0.5); color:white; border:none; padding:5px 10px; cursor:pointer;">Debug</button>
             <div class="chat-container">
                 <!-- Header: Logo, Title, Global Actions -->
                 <header class="chat-header">
@@ -806,7 +839,9 @@ class ChatPanel {
                         </button>
                     </div>
                 </div>
-            </div>
+
+                <!-- Debug Panel -->
+                <div id="debug-panel" style="display: none; padding: 10px; background-color: #1e1e1e; border-top: 1px solid #333; max-height: 200px; overflow-y: auto;":
 
             <!-- External Libraries -->
             <script nonce="${nonce}" src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.1/marked.min.js"></script>

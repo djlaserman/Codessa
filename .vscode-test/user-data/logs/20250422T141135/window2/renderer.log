@@ -1,0 +1,61 @@
+2025-04-22 20:56:47.929 [warning] Via 'product.json#extensionEnabledApiProposals' extension 'ms-python.python' wants API proposal 'terminalShellType' but that proposal DOES NOT EXIST. Likely, the proposal has been finalized (check 'vscode.d.ts') or was abandoned.
+2025-04-22 20:56:47.938 [warning] Via 'product.json#extensionEnabledApiProposals' extension 'ms-python.vscode-python-envs' wants API proposal 'terminalShellType' but that proposal DOES NOT EXIST. Likely, the proposal has been finalized (check 'vscode.d.ts') or was abandoned.
+2025-04-22 20:56:47.938 [warning] Via 'product.json#extensionEnabledApiProposals' extension 'github.copilot-chat' wants API proposal 'chatReadonlyPromptReference' but that proposal DOES NOT EXIST. Likely, the proposal has been finalized (check 'vscode.d.ts') or was abandoned.
+2025-04-22 20:56:48.134 [info] ChatSessionStore: Migrating 0 chat sessions from storage service to file system
+2025-04-22 20:56:48.262 [info] Started local extension host with pid 58452.
+2025-04-22 20:56:49.098 [info] Loading development extension at e:\_2025_Coding_Projects\AI\Codessa
+2025-04-22 20:56:49.120 [info] [TekNerds-ITS.codessa]: Command `codessa.addAgent` already registered by Codessa - The goddess of code (TekNerds-ITS.codessa)
+2025-04-22 20:56:49.121 [info] [TekNerds-ITS.codessa]: Command `codessa.deleteAgent` already registered by Codessa - The goddess of code (TekNerds-ITS.codessa)
+2025-04-22 20:56:49.130 [error] Ignoring codessa.memory.vectorStore.chroma as codessa.memory.vectorStore is "chroma"
+2025-04-22 20:56:49.132 [error] Ignoring codessa.memory.vectorStore.pinecone as codessa.memory.vectorStore is "chroma"
+2025-04-22 20:56:49.132 [error] Ignoring codessa.memory.database.sqlite as codessa.memory.database is "sqlite"
+2025-04-22 20:56:49.132 [error] Ignoring codessa.memory.database.mysql as codessa.memory.database is "sqlite"
+2025-04-22 20:56:49.133 [error] Ignoring codessa.memory.database.postgres as codessa.memory.database is "sqlite"
+2025-04-22 20:56:49.133 [error] Ignoring codessa.memory.database.mongodb as codessa.memory.database is "sqlite"
+2025-04-22 20:56:49.133 [error] Ignoring codessa.memory.database.redis as codessa.memory.database is "sqlite"
+2025-04-22 20:56:49.369 [info] Settings Sync: Account status changed from uninitialized to unavailable
+2025-04-22 20:56:50.723 [error] Ignoring codessa.memory.vectorStore.chroma as codessa.memory.vectorStore is "chroma"
+2025-04-22 20:56:50.724 [error] Ignoring codessa.memory.vectorStore.pinecone as codessa.memory.vectorStore is "chroma"
+2025-04-22 20:56:50.724 [error] Ignoring codessa.memory.database.sqlite as codessa.memory.database is "sqlite"
+2025-04-22 20:56:50.724 [error] Ignoring codessa.memory.database.mysql as codessa.memory.database is "sqlite"
+2025-04-22 20:56:50.724 [error] Ignoring codessa.memory.database.postgres as codessa.memory.database is "sqlite"
+2025-04-22 20:56:50.725 [error] Ignoring codessa.memory.database.mongodb as codessa.memory.database is "sqlite"
+2025-04-22 20:56:50.725 [error] Ignoring codessa.memory.database.redis as codessa.memory.database is "sqlite"
+2025-04-22 20:56:52.194 [info] [perf] Render performance baseline is 17ms
+2025-04-22 20:56:53.637 [info] Extension host (LocalProcess pid: 58452) is unresponsive.
+2025-04-22 20:56:53.843 [info] UNRESPONSIVE extension host: starting to profile NOW
+2025-04-22 20:57:07.373 [info] Extension host (LocalProcess pid: 58452) is responsive.
+2025-04-22 20:57:49.414 [warning] Via 'product.json#extensionEnabledApiProposals' extension 'ms-python.python' wants API proposal 'terminalShellType' but that proposal DOES NOT EXIST. Likely, the proposal has been finalized (check 'vscode.d.ts') or was abandoned.
+2025-04-22 20:57:49.414 [warning] Via 'product.json#extensionEnabledApiProposals' extension 'ms-python.vscode-python-envs' wants API proposal 'terminalShellType' but that proposal DOES NOT EXIST. Likely, the proposal has been finalized (check 'vscode.d.ts') or was abandoned.
+2025-04-22 20:57:49.414 [warning] Via 'product.json#extensionEnabledApiProposals' extension 'github.copilot-chat' wants API proposal 'chatReadonlyPromptReference' but that proposal DOES NOT EXIST. Likely, the proposal has been finalized (check 'vscode.d.ts') or was abandoned.
+2025-04-22 20:57:49.608 [info] Started local extension host with pid 46840.
+2025-04-22 20:57:49.988 [info] Loading development extension at e:\_2025_Coding_Projects\AI\Codessa
+2025-04-22 20:57:50.006 [info] [TekNerds-ITS.codessa]: Command `codessa.addAgent` already registered by Codessa - The goddess of code (TekNerds-ITS.codessa)
+2025-04-22 20:57:50.007 [info] [TekNerds-ITS.codessa]: Command `codessa.deleteAgent` already registered by Codessa - The goddess of code (TekNerds-ITS.codessa)
+2025-04-22 20:57:50.017 [error] Ignoring codessa.memory.vectorStore.chroma as codessa.memory.vectorStore is "chroma"
+2025-04-22 20:57:50.017 [error] Ignoring codessa.memory.vectorStore.pinecone as codessa.memory.vectorStore is "chroma"
+2025-04-22 20:57:50.018 [error] Ignoring codessa.memory.database.sqlite as codessa.memory.database is "sqlite"
+2025-04-22 20:57:50.018 [error] Ignoring codessa.memory.database.mysql as codessa.memory.database is "sqlite"
+2025-04-22 20:57:50.018 [error] Ignoring codessa.memory.database.postgres as codessa.memory.database is "sqlite"
+2025-04-22 20:57:50.018 [error] Ignoring codessa.memory.database.mongodb as codessa.memory.database is "sqlite"
+2025-04-22 20:57:50.018 [error] Ignoring codessa.memory.database.redis as codessa.memory.database is "sqlite"
+2025-04-22 20:57:50.528 [info] Settings Sync: Account status changed from uninitialized to unavailable
+2025-04-22 20:57:52.683 [error] Ignoring codessa.memory.vectorStore.chroma as codessa.memory.vectorStore is "chroma"
+2025-04-22 20:57:52.683 [error] Ignoring codessa.memory.vectorStore.pinecone as codessa.memory.vectorStore is "chroma"
+2025-04-22 20:57:52.683 [error] Ignoring codessa.memory.database.sqlite as codessa.memory.database is "sqlite"
+2025-04-22 20:57:52.683 [error] Ignoring codessa.memory.database.mysql as codessa.memory.database is "sqlite"
+2025-04-22 20:57:52.684 [error] Ignoring codessa.memory.database.postgres as codessa.memory.database is "sqlite"
+2025-04-22 20:57:52.684 [error] Ignoring codessa.memory.database.mongodb as codessa.memory.database is "sqlite"
+2025-04-22 20:57:52.684 [error] Ignoring codessa.memory.database.redis as codessa.memory.database is "sqlite"
+2025-04-22 20:57:52.812 [info] [perf] Render performance baseline is 17ms
+2025-04-22 20:58:23.380 [error] TreeError [DebugRepl] Tree input not set: Error: TreeError [DebugRepl] Tree input not set
+    at Wf.C (vscode-file://vscode-app/c:/Users/djlas/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:414:29043)
+    at Wf.updateChildren (vscode-file://vscode-app/c:/Users/djlas/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:414:28950)
+    at Hse.value (vscode-file://vscode-app/c:/Users/djlas/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:2081:33670)
+    at E.B (vscode-file://vscode-app/c:/Users/djlas/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:29:2392)
+    at E.C (vscode-file://vscode-app/c:/Users/djlas/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:29:2462)
+    at E.fire (vscode-file://vscode-app/c:/Users/djlas/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:29:2680)
+    at uCe.setVisible (vscode-file://vscode-app/c:/Users/djlas/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:648:2729)
+    at vscode-file://vscode-app/c:/Users/djlas/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:1287:11771
+    at Array.map (<anonymous>)
+    at cu.setVisible (vscode-file://vscode-app/c:/Users/djlas/AppData/Local/Programs/Microsoft%20VS%20Code/resources/app/out/vs/workbench/workbench.desktop.main.js:1287:11762)

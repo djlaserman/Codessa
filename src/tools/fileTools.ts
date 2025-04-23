@@ -4,6 +4,7 @@ import { ITool, ToolInput, ToolResult } from './tool';
 import { AgentContext } from '../agents/agent';
 import { diffEngine } from '../diff/diffEngine';
 import { TextDecoder, TextEncoder } from 'util';
+import { CreateFileTool, DeleteFileTool, RenameFileTool, CopyFileTool, CreateDirectoryTool, DeleteDirectoryTool } from './advancedFileTools';
 
 const decoder = new TextDecoder('utf-8');
 const encoder = new TextEncoder();
@@ -11,13 +12,19 @@ const encoder = new TextEncoder();
 export class FileSystemTool implements ITool {
     readonly id = 'file';
     readonly name = 'File System Operations';
-    readonly description = 'Provides actions to read, write, diff, and patch files in the workspace. Paths can be relative to the workspace root or absolute.';
+    readonly description = 'Provides actions to read, write, diff, patch, create, delete, rename, copy files, and create/delete directories in the workspace. Paths can be relative to the workspace root or absolute.';
 
     readonly actions: { [key: string]: ITool } = {
         'readFile': new ReadFileTool(),
         'writeFile': new WriteFileTool(),
         'createDiff': new CreateDiffTool(),
         'applyDiff': new ApplyDiffTool(),
+        'createFile': new CreateFileTool(),
+        'deleteFile': new DeleteFileTool(),
+        'renameFile': new RenameFileTool(),
+        'copyFile': new CopyFileTool(),
+        'createDir': new CreateDirectoryTool(),
+        'deleteDir': new DeleteDirectoryTool(),
     };
 
     async execute(input: ToolInput, context?: AgentContext): Promise<ToolResult> {

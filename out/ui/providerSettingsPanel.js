@@ -95,6 +95,25 @@ class ProviderSettingsPanel {
                 case 'getModels':
                     await this._handleGetModels();
                     break;
+                case 'getAllProviders':
+                    await this._handleGetAllProviders();
+                    break;
+                case 'selectProvider':
+                    this._providerId = message.providerId;
+                    await this._handleGetProviderConfig();
+                    break;
+                case 'getGGUFModels':
+                    await this._handleGetGGUFModels();
+                    break;
+                case 'addGGUFModel':
+                    await this._handleAddGGUFModel(message.filePath);
+                    break;
+                case 'downloadGGUFModel':
+                    await this._handleDownloadGGUFModel(message.url, message.fileName);
+                    break;
+                case 'removeGGUFModel':
+                    await this._handleRemoveGGUFModel(message.modelId);
+                    break;
                 case 'cancel':
                     this._panel.dispose();
                     break;
@@ -111,6 +130,9 @@ class ProviderSettingsPanel {
                     else {
                         logger_1.logger.info(message.message);
                     }
+                    break;
+                case 'showOpenDialog':
+                    this._handleShowOpenDialog(message.options);
                     break;
             }
         }, null, this._disposables);
@@ -295,71 +317,111 @@ class ProviderSettingsPanel {
                 <div class="config-container">
                     <header class="config-header">
                         <img src="${logoUri}" alt="Codessa Logo" class="logo" />
-                        <h1><span id="provider-display-name">${this._providerId}</span> Settings</h1>
+                        <h1>LLM Provider Settings</h1>
                     </header>
 
-                    <div class="provider-info">
-                        <p id="provider-description"></p>
-                        <p id="provider-website"></p>
-                    </div>
-
-                    <div class="config-form">
-                        <div class="form-section">
-                            <h2>Provider Configuration</h2>
-                            <div id="config-fields-container">
-                                <!-- Configuration fields will be inserted here -->
-                            </div>
+                    <div class="tabs-container">
+                        <div class="tabs-header">
+                            <div class="tab active" data-tab="provider-settings">Provider Settings</div>
+                            <div class="tab" data-tab="providers-list">All Providers</div>
+                            <div class="tab" data-tab="gguf-models">GGUF Models</div>
                         </div>
 
-                        <div class="form-section">
-                            <h2>Models</h2>
-                            <div class="form-group">
-                                <label for="default-model">Default Model:</label>
-                                <select id="default-model" class="form-control">
-                                    <option value="">-- Select a model --</option>
-                                    <!-- Models will be populated dynamically -->
-                                </select>
-                                <div class="description">The default model to use with this provider</div>
+                        <!-- Provider Settings Tab -->
+                        <div id="provider-settings" class="tab-content active">
+                            <div class="provider-info">
+                                <h2><span id="provider-display-name">${this._providerId}</span></h2>
+                                <p id="provider-description"></p>
+                                <p id="provider-website"></p>
                             </div>
-                            <div class="form-group">
-                                <button id="btn-refresh-models" class="btn secondary">Refresh Models</button>
-                                <span id="refresh-status"></span>
-                            </div>
-                            <div class="form-group models-list-container">
-                                <label>Available Models:</label>
-                                <div id="models-list" class="models-list">
-                                    <!-- Models will be listed here -->
-                                    <div class="loading-models">Loading models...</div>
+
+                            <div class="config-form">
+                                <div class="form-section">
+                                    <h2>Provider Configuration</h2>
+                                    <div id="config-fields-container">
+                                        <!-- Configuration fields will be inserted here -->
+                                    </div>
+                                </div>
+
+                                <div class="form-section">
+                                    <h2>Models</h2>
+                                    <div class="form-group">
+                                        <label for="default-model">Default Model:</label>
+                                        <select id="default-model" class="form-control">
+                                            <option value="">-- Select a model --</option>
+                                            <!-- Models will be populated dynamically -->
+                                        </select>
+                                        <div class="description">The default model to use with this provider</div>
+                                    </div>
+                                    <div class="form-group">
+                                        <button id="btn-refresh-models" class="btn secondary">Refresh Models</button>
+                                        <span id="refresh-status"></span>
+                                    </div>
+                                    <div class="form-group models-list-container">
+                                        <label>Available Models:</label>
+                                        <div id="models-list" class="models-list">
+                                            <!-- Models will be listed here -->
+                                            <div class="loading-models">Loading models...</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="form-section">
+                                    <h2>Connection Test</h2>
+                                    <div class="form-group">
+                                        <label for="test-model">Model to Test:</label>
+                                        <select id="test-model" class="form-control">
+                                            <option value="">-- Select a model --</option>
+                                            <!-- Models will be populated dynamically -->
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <button id="btn-test-connection" class="btn secondary">Test Connection</button>
+                                        <span id="connection-status"></span>
+                                    </div>
+                                </div>
+
+                                <div class="form-section">
+                                    <h2>Default Provider</h2>
+                                    <div class="form-group">
+                                        <button id="btn-set-default" class="btn secondary">Set as Default Provider</button>
+                                        <span id="default-status"></span>
+                                    </div>
+                                </div>
+
+                                <div class="form-actions">
+                                    <button id="btn-save" class="btn primary">Save Configuration</button>
+                                    <button id="btn-cancel" class="btn secondary">Close</button>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="form-section">
-                            <h2>Connection Test</h2>
-                            <div class="form-group">
-                                <label for="test-model">Model to Test:</label>
-                                <select id="test-model" class="form-control">
-                                    <option value="">-- Select a model --</option>
-                                    <!-- Models will be populated dynamically -->
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <button id="btn-test-connection" class="btn secondary">Test Connection</button>
-                                <span id="connection-status"></span>
+                        <!-- All Providers Tab -->
+                        <div id="providers-list" class="tab-content">
+                            <h2>Available LLM Providers</h2>
+                            <p>Select a provider to configure:</p>
+                            <div id="providers-container">
+                                <!-- Providers will be listed here by category -->
+                                <div class="loading">Loading providers...</div>
                             </div>
                         </div>
 
-                        <div class="form-section">
-                            <h2>Default Provider</h2>
-                            <div class="form-group">
-                                <button id="btn-set-default" class="btn secondary">Set as Default Provider</button>
-                                <span id="default-status"></span>
-                            </div>
-                        </div>
+                        <!-- GGUF Models Tab -->
+                        <div id="gguf-models" class="tab-content">
+                            <h2>GGUF Model Management</h2>
+                            <p>Manage your local GGUF models for use with the GGUF provider:</p>
 
-                        <div class="form-actions">
-                            <button id="btn-save" class="btn primary">Save Configuration</button>
-                            <button id="btn-cancel" class="btn secondary">Close</button>
+                            <div class="gguf-models-container">
+                                <div class="gguf-model-actions">
+                                    <button id="btn-add-gguf-model" class="btn primary">Add Local Model</button>
+                                    <button id="btn-download-gguf-model" class="btn secondary">Download Model</button>
+                                </div>
+
+                                <div id="gguf-models-list" class="gguf-model-list">
+                                    <!-- GGUF models will be listed here -->
+                                    <div class="loading">Loading GGUF models...</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -371,6 +433,181 @@ class ProviderSettingsPanel {
                 <script nonce="${nonce}" src="${scriptUri}"></script>
             </body>
             </html>`;
+    }
+    /**
+     * Handle showing an open dialog
+     */
+    async _handleShowOpenDialog(options) {
+        try {
+            const result = await vscode.window.showOpenDialog(options);
+            if (result && result.length > 0) {
+                const filePath = result[0].fsPath;
+                // If this is for a GGUF model, add it
+                if (options.filters && options.filters['GGUF Models']) {
+                    await this._handleAddGGUFModel(filePath);
+                }
+            }
+        }
+        catch (error) {
+            logger_1.logger.error('Error showing open dialog:', error);
+            this._panel.webview.postMessage({
+                type: 'error',
+                message: `Error showing file dialog: ${error}`
+            });
+        }
+    }
+    /**
+     * Handle getting all providers
+     */
+    async _handleGetAllProviders() {
+        try {
+            // Get all providers
+            const providers = llmService_1.llmService.getAllProviders().map(provider => ({
+                id: provider.providerId,
+                displayName: provider.displayName,
+                description: provider.description,
+                website: provider.website,
+                isConfigured: provider.isConfigured()
+            }));
+            // Send the providers to the webview
+            this._panel.webview.postMessage({
+                type: 'allProviders',
+                providers
+            });
+        }
+        catch (error) {
+            logger_1.logger.error('Error getting all providers:', error);
+            this._panel.webview.postMessage({
+                type: 'error',
+                message: `Error getting providers: ${error}`
+            });
+        }
+    }
+    /**
+     * Handle getting GGUF models
+     */
+    async _handleGetGGUFModels() {
+        try {
+            const ggufProvider = llmService_1.llmService.getProvider('gguf');
+            if (!ggufProvider) {
+                throw new Error('GGUF provider not found');
+            }
+            // Get the available models
+            const models = await ggufProvider.listModels();
+            // Send the models to the webview
+            this._panel.webview.postMessage({
+                type: 'ggufModels',
+                models: models.map((model) => ({
+                    id: model.id,
+                    name: model.name,
+                    path: model.description?.includes('Path:') ? model.description.split('Path:')[1].trim() : '',
+                    size: model.description?.includes('Size:') ? model.description.split('Size:')[1].trim() : ''
+                }))
+            });
+        }
+        catch (error) {
+            logger_1.logger.error('Error getting GGUF models:', error);
+            this._panel.webview.postMessage({
+                type: 'error',
+                message: `Error getting GGUF models: ${error}`
+            });
+        }
+    }
+    /**
+     * Handle adding a GGUF model
+     */
+    async _handleAddGGUFModel(filePath) {
+        try {
+            const ggufProvider = llmService_1.llmService.getProvider('gguf');
+            if (!ggufProvider) {
+                throw new Error('GGUF provider not found');
+            }
+            // Add the model
+            const success = await ggufProvider.addModelFromFile(filePath);
+            if (success) {
+                this._panel.webview.postMessage({
+                    type: 'ggufModelAdded',
+                    success: true,
+                    message: 'Model added successfully'
+                });
+                // Refresh the models list
+                await this._handleGetGGUFModels();
+            }
+            else {
+                throw new Error('Failed to add model');
+            }
+        }
+        catch (error) {
+            logger_1.logger.error('Error adding GGUF model:', error);
+            this._panel.webview.postMessage({
+                type: 'error',
+                message: `Error adding GGUF model: ${error}`
+            });
+        }
+    }
+    /**
+     * Handle downloading a GGUF model
+     */
+    async _handleDownloadGGUFModel(url, fileName) {
+        try {
+            const ggufProvider = llmService_1.llmService.getProvider('gguf');
+            if (!ggufProvider) {
+                throw new Error('GGUF provider not found');
+            }
+            // Download the model
+            const success = await ggufProvider.downloadModel(url, fileName);
+            if (success) {
+                this._panel.webview.postMessage({
+                    type: 'ggufModelDownloaded',
+                    success: true,
+                    message: 'Model downloaded successfully'
+                });
+                // Refresh the models list
+                await this._handleGetGGUFModels();
+            }
+            else {
+                throw new Error('Failed to download model');
+            }
+        }
+        catch (error) {
+            logger_1.logger.error('Error downloading GGUF model:', error);
+            this._panel.webview.postMessage({
+                type: 'error',
+                message: `Error downloading GGUF model: ${error}`
+            });
+        }
+    }
+    /**
+     * Handle removing a GGUF model
+     */
+    async _handleRemoveGGUFModel(modelId) {
+        try {
+            const ggufProvider = llmService_1.llmService.getProvider('gguf');
+            if (!ggufProvider) {
+                throw new Error('GGUF provider not found');
+            }
+            // Remove the model
+            const success = await ggufProvider.removeModel(modelId);
+            if (success) {
+                this._panel.webview.postMessage({
+                    type: 'ggufModelRemoved',
+                    success: true,
+                    message: 'Model removed successfully'
+                });
+                // Refresh the models list
+                await this._handleGetGGUFModels();
+            }
+            else {
+                throw new Error('Failed to remove model');
+            }
+        }
+        catch (error) {
+            logger_1.logger.error('Error removing GGUF model:', error);
+            this._panel.webview.postMessage({
+                type: 'error',
+                message: `Error removing GGUF model: ${error}`
+            });
+        }
     }
     /**
      * Clean up resources

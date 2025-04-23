@@ -1,0 +1,5 @@
+[2025-04-22T18:56:57.275Z] WARN  MistralAI SDK not available, falling back to axios
+[2025-04-22T18:56:57.962Z] INFO  Initialized 2 tools in registry.
+[2025-04-22T18:56:57.995Z] INFO  Loaded 10 system prompts.
+[2025-04-22T18:56:57.995Z] INFO  Loaded 0 prompt variables.
+[2025-04-22T18:56:58.369Z] INFO  Loaded 0 agents

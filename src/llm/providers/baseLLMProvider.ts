@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { ILLMProvider, LLMGenerateParams, LLMGenerateResult, LLMModelInfo, LLMProviderConfig } from '../llmProvider';
 import { ITool } from '../../tools/tool';
 import { logger } from '../../logger';
-import { providerSettingsManager } from '../providerSettings';
+import { providerManager } from '../providerManager';
 
 /**
  * Base class for LLM providers that implements common functionality
@@ -41,15 +41,17 @@ export abstract class BaseLLMProvider implements ILLMProvider {
     /**
      * Load the provider configuration
      */
-    protected async loadConfig(): Promise<void> {
+    public async loadConfig(): Promise<void> {
         try {
             if (this.context) {
-                this.config = await providerSettingsManager.getInstance(this.context).getProviderConfig(this.providerId);
+                this.config = await providerManager.getInstance(this.context).getProviderConfig(this.providerId);
                 logger.debug(`Loaded configuration for provider ${this.providerId}`);
             } else {
                 // If no context, try to get config from workspace settings
-                const config = vscode.workspace.getConfiguration('codessa.llm.providers');
-                this.config = config.get(this.providerId) || {};
+                const config = vscode.workspace.getConfiguration('codessa.llm');
+                const providers = config.get<Record<string, LLMProviderConfig>>('providers') || {};
+                this.config = providers[this.providerId] || {};
+                logger.debug(`Loaded configuration for provider ${this.providerId} without context: ${JSON.stringify(this.config)}`);
             }
         } catch (error) {
             logger.error(`Failed to load configuration for provider ${this.providerId}:`, error);
@@ -80,11 +82,37 @@ export abstract class BaseLLMProvider implements ILLMProvider {
     public async updateConfig(config: LLMProviderConfig): Promise<void> {
         try {
             if (this.context) {
-                await providerSettingsManager.getInstance(this.context).updateProviderConfig(this.providerId, config);
+                const success = await providerManager.getInstance(this.context).updateProviderConfig(this.providerId, config);
+                if (!success) {
+                    throw new Error(`Failed to update configuration for provider ${this.providerId}`);
+                }
             } else {
                 // If no context, update workspace settings directly
-                const vsConfig = vscode.workspace.getConfiguration('codessa.llm.providers');
-                await vsConfig.update(this.providerId, config, vscode.ConfigurationTarget.Global);
+                const vsConfig = vscode.workspace.getConfiguration('codessa.llm');
+                const providers = vsConfig.get<Record<string, LLMProviderConfig>>('providers') || {};
+
+                // Update the specific provider in the providers object
+                const updatedProviders = {
+                    ...providers,
+                    [this.providerId]: config
+                };
+
+                // Update the entire providers object
+                try {
+                    // First try Global level
+                    await vsConfig.update('providers', updatedProviders, vscode.ConfigurationTarget.Global);
+                    logger.info(`Updated global configuration for provider ${this.providerId}`);
+                } catch (globalError) {
+                    logger.warn(`Failed to update global configuration: ${globalError}. Trying workspace level...`);
+
+                    // Then try Workspace level if available
+                    if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
+                        await vsConfig.update('providers', updatedProviders, vscode.ConfigurationTarget.Workspace);
+                        logger.info(`Updated workspace configuration for provider ${this.providerId}`);
+                    } else {
+                        throw new Error(`Failed to update configuration: No valid configuration target found`);
+                    }
+                }
             }
             this.config = config;
             logger.info(`Updated configuration for provider ${this.providerId}`);
@@ -98,8 +126,8 @@ export abstract class BaseLLMProvider implements ILLMProvider {
     /**
      * Get the required configuration fields for this provider
      */
-    public getConfigurationFields(): Array<{id: string, name: string, description: string, required: boolean, type: 'string' | 'boolean' | 'number' | 'select', options?: string[]}> {
-        const fields: Array<{id: string, name: string, description: string, required: boolean, type: 'string' | 'boolean' | 'number' | 'select', options?: string[]}> = [];
+    public getConfigurationFields(): Array<{id: string, name: string, description: string, required: boolean, type: 'string' | 'boolean' | 'number' | 'select' | 'file' | 'directory', options?: string[]}> {
+        const fields: Array<{id: string, name: string, description: string, required: boolean, type: 'string' | 'boolean' | 'number' | 'select' | 'file' | 'directory', options?: string[]}> = [];
 
         if (this.requiresApiKey) {
             fields.push({

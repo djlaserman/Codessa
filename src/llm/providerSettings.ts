@@ -10,7 +10,7 @@ import { credentialsManager } from '../credentials/credentialsManager';
 export class ProviderSettingsManager {
     private static instance: ProviderSettingsManager;
     private context: vscode.ExtensionContext;
-    private readonly configSection = 'codessa.llm.providers';
+    private readonly configSection = 'codessa.llm';
 
     private constructor(context: vscode.ExtensionContext) {
         this.context = context;
@@ -37,8 +37,9 @@ export class ProviderSettingsManager {
     public async getProviderConfig(providerId: string): Promise<LLMProviderConfig> {
         try {
             // Get non-sensitive settings from VS Code configuration
-            const config = vscode.workspace.getConfiguration(this.configSection);
-            const providerConfig = config.get<LLMProviderConfig>(providerId) || {};
+            const config = vscode.workspace.getConfiguration('codessa.llm');
+            const providers = config.get<Record<string, LLMProviderConfig>>('providers') || {};
+            const providerConfig = providers[providerId] || {};
 
             // Get sensitive settings from secure storage
             const apiKey = await credentialsManager.getInstance(this.context).getCredential(providerId, 'apiKey');
@@ -75,23 +76,46 @@ export class ProviderSettingsManager {
 
             // Update non-sensitive settings in VS Code configuration
             try {
-                const vsConfig = vscode.workspace.getConfiguration(this.configSection);
-                
-                // First try Global target
+                // Get the current configuration
+                const vsConfig = vscode.workspace.getConfiguration('codessa.llm');
+
+                // Get the current providers object
+                const providers = vsConfig.get('providers') || {};
+
+                // Update the specific provider in the providers object
+                const updatedProviders = {
+                    ...providers,
+                    [providerId]: config
+                };
+
+                // Log the current configuration and what we're trying to update
+                logger.debug(`Current providers configuration: ${JSON.stringify(providers)}`);
+                logger.debug(`Updating provider ${providerId} with config: ${JSON.stringify(config)}`);
+                logger.debug(`Updated providers will be: ${JSON.stringify(updatedProviders)}`);
+
+                // Update the entire providers object
                 try {
-                    await vsConfig.update(providerId, config, vscode.ConfigurationTarget.Global);
-                    logger.info(`Updated global configuration for provider ${providerId}`);
-                } catch (globalError) {
-                    logger.warn(`Failed to update global configuration, trying Workspace target: ${globalError}`);
-                    
-                    // Fall back to Workspace target if Global fails
+                    // First try updating at the User level (most reliable)
                     try {
-                        await vsConfig.update(providerId, config, vscode.ConfigurationTarget.Workspace);
-                        logger.info(`Updated workspace configuration for provider ${providerId}`);
-                    } catch (workspaceError) {
-                        logger.error(`Failed to update workspace configuration: ${workspaceError}`);
-                        throw new Error(`Failed to update configuration at both Global and Workspace levels: ${workspaceError}`);
+                        await vsConfig.update('providers', updatedProviders, true);
+                        logger.info(`Updated user configuration for provider ${providerId}`);
+                        return; // Exit if successful
+                    } catch (userError) {
+                        logger.warn(`Failed to update user configuration: ${userError}. Trying workspace/global...`);
                     }
+
+                    // Then try Workspace or Global level
+                    if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
+                        await vsConfig.update('providers', updatedProviders, vscode.ConfigurationTarget.Workspace);
+                        logger.info(`Updated workspace configuration for provider ${providerId}`);
+                    } else {
+                        // If no workspace is open, update at the Global level
+                        await vsConfig.update('providers', updatedProviders, vscode.ConfigurationTarget.Global);
+                        logger.info(`Updated global configuration for provider ${providerId}`);
+                    }
+                } catch (updateError) {
+                    logger.error(`Failed to update configuration: ${updateError}`);
+                    throw new Error(`Failed to update configuration: ${updateError}`);
                 }
             } catch (error) {
                 logger.error(`Failed to update configuration for provider ${providerId}:`, error);
@@ -144,8 +168,30 @@ export class ProviderSettingsManager {
     public async setDefaultProviderId(providerId: string): Promise<void> {
         try {
             const config = vscode.workspace.getConfiguration('codessa.llm');
-            await config.update('defaultProvider', providerId, vscode.ConfigurationTarget.Global);
-            logger.info(`Set default provider to ${providerId}`);
+
+            // Try different configuration targets in order
+            try {
+                // First try updating at the Workspace level if we have a workspace
+                if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
+                    await config.update('defaultProvider', providerId, vscode.ConfigurationTarget.Workspace);
+                    logger.info(`Set default provider to ${providerId} at workspace level`);
+                } else {
+                    // If no workspace is open, update at the Global level
+                    await config.update('defaultProvider', providerId, vscode.ConfigurationTarget.Global);
+                    logger.info(`Set default provider to ${providerId} at global level`);
+                }
+            } catch (updateError) {
+                logger.warn(`Failed to set default provider at workspace/global level: ${updateError}`);
+
+                // Try User settings as a fallback
+                try {
+                    await config.update('defaultProvider', providerId, true);
+                    logger.info(`Set default provider to ${providerId} at user level`);
+                } catch (userError) {
+                    logger.error(`Failed to set default provider at user level: ${userError}`);
+                    throw new Error(`Failed to set default provider: ${userError}`);
+                }
+            }
         } catch (error) {
             logger.error(`Failed to set default provider to ${providerId}:`, error);
             const errorMessage = error instanceof Error ? error.message : String(error);

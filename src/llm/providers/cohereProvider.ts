@@ -85,12 +85,12 @@ export class CohereProvider extends BaseLLMProvider {
                         messages.push({
                             role: 'USER',
                             message: message.content
-                        });
+                        } as const);
                     } else if (message.role === 'assistant') {
                         messages.push({
                             role: 'CHATBOT',
                             message: message.content
-                        });
+                        } as const);
                     }
                 }
             }
@@ -230,3 +230,5 @@ export class CohereProvider extends BaseLLMProvider {
         ];
     }
 }
+
+

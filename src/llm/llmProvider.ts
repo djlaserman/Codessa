@@ -41,6 +41,7 @@ export interface LLMModelInfo {
     supportsFunctions?: boolean;
     supportsVision?: boolean;
     deprecated?: boolean;
+    pricingInfo?: string;
 }
 
 export interface LLMProviderConfig {
@@ -49,6 +50,8 @@ export interface LLMProviderConfig {
     organizationId?: string;
     defaultModel?: string;
     additionalParams?: Record<string, any>;
+    llamaCppPath?: string;
+    additionalModelDirectories?: string[];
 }
 
 export interface ILLMProvider {
@@ -60,6 +63,7 @@ export interface ILLMProvider {
     readonly requiresApiKey: boolean;
     readonly supportsEndpointConfiguration: boolean;
     readonly defaultModel?: string;
+    readonly supportsEmbeddings?: boolean;
 
     /**
      * Generates text based on the provided parameters.
@@ -80,6 +84,15 @@ export interface ILLMProvider {
     ): AsyncGenerator<string, void, unknown>;
 
     /**
+     * Generates an embedding vector for the given text.
+     * Note: Not all providers support embeddings.
+     */
+    generateEmbedding?(
+        text: string,
+        modelId?: string
+    ): Promise<number[]>;
+
+    /**
      * Fetches the list of available models for this provider.
      * @deprecated Use listModels() instead
      */
@@ -90,6 +103,12 @@ export interface ILLMProvider {
      * This is the preferred method for getting models.
      */
     listModels(): Promise<LLMModelInfo[]>;
+
+    /**
+     * Lists available embedding models with their details.
+     * Only relevant for providers that support embeddings.
+     */
+    listEmbeddingModels?(): Promise<LLMModelInfo[]>;
 
     /**
      * Tests the connection to the provider with the specified model.
@@ -112,7 +131,12 @@ export interface ILLMProvider {
     updateConfig(config: LLMProviderConfig): Promise<void>;
 
     /**
+     * Loads the configuration for this provider from settings.
+     */
+    loadConfig(): Promise<void>;
+
+    /**
      * Gets the required configuration fields for this provider.
      */
-    getConfigurationFields(): Array<{id: string, name: string, description: string, required: boolean, type: 'string' | 'boolean' | 'number' | 'select', options?: string[]}>;
+    getConfigurationFields(): Array<{id: string, name: string, description: string, required: boolean, type: 'string' | 'boolean' | 'number' | 'select' | 'file' | 'directory', options?: string[]}>;
 }

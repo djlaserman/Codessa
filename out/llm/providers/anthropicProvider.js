@@ -37,18 +37,20 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AnthropicProvider = void 0;
-const config_1 = require("../../config");
+const baseLLMProvider_1 = require("./baseLLMProvider");
 const logger_1 = require("../../logger");
 const vscode = __importStar(require("vscode"));
 const sdk_1 = __importDefault(require("@anthropic-ai/sdk"));
-class AnthropicProvider {
-    constructor() {
+class AnthropicProvider extends baseLLMProvider_1.BaseLLMProvider {
+    constructor(context) {
+        super(context);
         this.providerId = 'anthropic';
         this.displayName = 'Anthropic';
         this.description = 'Anthropic Claude AI models';
         this.website = 'https://anthropic.com';
         this.requiresApiKey = true;
         this.supportsEndpointConfiguration = false;
+        this.defaultEndpoint = 'https://api.anthropic.com';
         this.defaultModel = 'claude-3-opus-20240229';
         this.client = null;
         this.initializeClient();
@@ -61,7 +63,7 @@ class AnthropicProvider {
         });
     }
     initializeClient() {
-        const apiKey = (0, config_1.getAnthropicApiKey)();
+        const apiKey = this.config.apiKey;
         if (!apiKey) {
             logger_1.logger.warn('Anthropic API key not set.');
             this.client = null;
@@ -260,23 +262,7 @@ class AnthropicProvider {
             };
         }
     }
-    /**
-     * Get the configuration for this provider
-     */
-    getConfig() {
-        return {
-            apiKey: (0, config_1.getAnthropicApiKey)(),
-            defaultModel: this.defaultModel
-        };
-    }
-    /**
-     * Update the provider configuration
-     */
-    async updateConfig(config) {
-        // This is a placeholder - in the real implementation, we would update the configuration
-        // For now, we'll just log that this method was called
-        logger_1.logger.info(`Anthropic provider updateConfig called with: ${JSON.stringify(config)}`);
-    }
+    // Use the parent class implementation for getConfig and updateConfig
     /**
      * Get the configuration fields for this provider
      */

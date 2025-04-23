@@ -10,6 +10,15 @@ let isDefaultProvider = false;
 let isTestingConnection = false;
 let isRefreshingModels = false;
 let availableModels = [];
+let allProviders = [];
+let providerCategories = {
+    'standard': 'Standard API Providers',
+    'local': 'Local & Self-Hosted',
+    'aggregator': 'Aggregator Providers',
+    'code': 'Code-Specific Models'
+};
+let currentTab = 'provider-settings';
+let currentProvider = '';
 
 // Debug logging function
 function logDebug(message) {
@@ -29,6 +38,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // Set up event listeners
         setupEventListeners();
 
+        // Set up GGUF model management
+        setupGGUFModelManagement();
+
         // Request provider configuration from extension
         logDebug('Requesting provider configuration from extension');
         vscode.postMessage({ command: 'getProviderConfig' });
@@ -38,9 +50,81 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+/**
+ * Set up GGUF model management
+ */
+function setupGGUFModelManagement() {
+    try {
+        const btnAddModel = document.getElementById('btn-add-gguf-model');
+        const btnDownloadModel = document.getElementById('btn-download-gguf-model');
+
+        if (!btnAddModel || !btnDownloadModel) {
+            logDebug('GGUF model management buttons not found');
+            return;
+        }
+
+        // Add local model button
+        btnAddModel.addEventListener('click', () => {
+            logDebug('Add GGUF model button clicked');
+
+            // Show file picker dialog
+            vscode.postMessage({
+                command: 'showOpenDialog',
+                options: {
+                    canSelectFiles: true,
+                    canSelectFolders: false,
+                    canSelectMany: false,
+                    filters: {
+                        'GGUF Models': ['gguf']
+                    },
+                    title: 'Select GGUF Model File'
+                }
+            });
+        });
+
+        // Download model button
+        btnDownloadModel.addEventListener('click', () => {
+            logDebug('Download GGUF model button clicked');
+
+            // Show download dialog
+            const url = prompt('Enter the URL of the GGUF model to download:');
+            if (!url) {
+                return;
+            }
+
+            // Extract filename from URL or ask user
+            let fileName = url.split('/').pop();
+            if (!fileName || !fileName.endsWith('.gguf')) {
+                fileName = prompt('Enter a filename for the downloaded model (must end with .gguf):', fileName || 'model.gguf');
+                if (!fileName) {
+                    return;
+                }
+
+                // Ensure filename ends with .gguf
+                if (!fileName.endsWith('.gguf')) {
+                    fileName += '.gguf';
+                }
+            }
+
+            // Start download
+            vscode.postMessage({
+                command: 'downloadGGUFModel',
+                url,
+                fileName
+            });
+        });
+    } catch (error) {
+        console.error('Error setting up GGUF model management:', error);
+        logDebug(`Error setting up GGUF model management: ${error.message}`);
+    }
+}
+
 function setupEventListeners() {
     try {
         logDebug('Setting up event listeners');
+
+        // Set up tab switching
+        setupTabs();
 
         // Get UI elements
         const btnTestConnection = document.getElementById('btn-test-connection');
@@ -447,9 +531,316 @@ function renderModels() {
     }
 }
 
+/**
+ * Set up tab switching functionality
+ */
+function setupTabs() {
+    try {
+        logDebug('Setting up tabs');
+        const tabs = document.querySelectorAll('.tab');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        if (!tabs.length || !tabContents.length) {
+            logDebug('No tabs found, skipping tab setup');
+            return;
+        }
+
+        // Add click event to each tab
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabId = tab.getAttribute('data-tab');
+                logDebug(`Tab clicked: ${tabId}`);
+
+                // Update current tab
+                currentTab = tabId;
+
+                // Remove active class from all tabs and contents
+                tabs.forEach(t => t.classList.remove('active'));
+                tabContents.forEach(c => c.classList.remove('active'));
+
+                // Add active class to current tab and content
+                tab.classList.add('active');
+                document.getElementById(tabId).classList.add('active');
+
+                // If this is the providers tab, request providers list
+                if (tabId === 'providers-list') {
+                    vscode.postMessage({ command: 'getAllProviders' });
+                }
+
+                // If this is the GGUF models tab, request GGUF models
+                if (tabId === 'gguf-models') {
+                    vscode.postMessage({ command: 'getGGUFModels' });
+                }
+            });
+        });
+
+        // Activate the first tab by default
+        tabs[0].click();
+    } catch (error) {
+        console.error('Error setting up tabs:', error);
+        logDebug(`Error setting up tabs: ${error.message}`);
+    }
+}
+
+/**
+ * Render the providers list by category
+ */
+function renderProvidersList() {
+    try {
+        logDebug(`Rendering ${allProviders.length} providers`);
+        const providersContainer = document.getElementById('providers-container');
+
+        if (!providersContainer) {
+            logDebug('Providers container not found');
+            return;
+        }
+
+        providersContainer.innerHTML = '';
+
+        // Group providers by category
+        const categorizedProviders = {};
+
+        // Initialize categories
+        Object.keys(providerCategories).forEach(category => {
+            categorizedProviders[category] = [];
+        });
+
+        // Add a category for uncategorized providers
+        categorizedProviders['other'] = [];
+
+        // Categorize providers
+        allProviders.forEach(provider => {
+            let category = 'other';
+
+            // Determine category based on provider ID
+            if (['openai', 'anthropic', 'googleai', 'mistralai', 'cohere', 'deepseek'].includes(provider.id)) {
+                category = 'standard';
+            } else if (['ollama', 'lmstudio', 'gguf'].includes(provider.id)) {
+                category = 'local';
+            } else if (['openrouter', 'huggingface'].includes(provider.id)) {
+                category = 'aggregator';
+            } else if (['starcoder', 'codellama', 'replit', 'wizardcoder', 'xwincoder', 'phi', 'yicode',
+                       'codegemma', 'santacoder', 'stablecode', 'codeparrot', 'noushermes'].includes(provider.id)) {
+                category = 'code';
+            }
+
+            categorizedProviders[category].push(provider);
+        });
+
+        // Render each category
+        Object.keys(providerCategories).forEach(category => {
+            const providers = categorizedProviders[category];
+
+            if (providers.length === 0) {
+                return; // Skip empty categories
+            }
+
+            // Create category container
+            const categoryDiv = document.createElement('div');
+            categoryDiv.className = 'provider-category';
+
+            // Add category title
+            const titleDiv = document.createElement('div');
+            titleDiv.className = 'provider-category-title';
+            titleDiv.textContent = providerCategories[category];
+            categoryDiv.appendChild(titleDiv);
+
+            // Create grid for providers
+            const gridDiv = document.createElement('div');
+            gridDiv.className = 'provider-grid';
+
+            // Add providers to grid
+            providers.forEach(provider => {
+                const providerCard = document.createElement('div');
+                providerCard.className = 'provider-card';
+                providerCard.dataset.providerId = provider.id;
+
+                // Highlight current provider
+                if (provider.id === currentProvider) {
+                    providerCard.classList.add('selected');
+                }
+
+                const nameDiv = document.createElement('div');
+                nameDiv.className = 'provider-name';
+                nameDiv.textContent = provider.displayName || provider.id;
+
+                const descDiv = document.createElement('div');
+                descDiv.className = 'provider-description';
+                descDiv.textContent = provider.description || '';
+
+                providerCard.appendChild(nameDiv);
+                providerCard.appendChild(descDiv);
+
+                // Add click handler
+                providerCard.addEventListener('click', () => {
+                    logDebug(`Provider selected: ${provider.id}`);
+
+                    // Update selected provider
+                    document.querySelectorAll('.provider-card').forEach(card => {
+                        card.classList.remove('selected');
+                    });
+                    providerCard.classList.add('selected');
+
+                    // Switch to provider settings tab
+                    document.querySelector('.tab[data-tab="provider-settings"]').click();
+
+                    // Request provider configuration
+                    vscode.postMessage({
+                        command: 'selectProvider',
+                        providerId: provider.id
+                    });
+                });
+
+                gridDiv.appendChild(providerCard);
+            });
+
+            categoryDiv.appendChild(gridDiv);
+            providersContainer.appendChild(categoryDiv);
+        });
+
+        // Render uncategorized providers if any
+        if (categorizedProviders.other.length > 0) {
+            const categoryDiv = document.createElement('div');
+            categoryDiv.className = 'provider-category';
+
+            const titleDiv = document.createElement('div');
+            titleDiv.className = 'provider-category-title';
+            titleDiv.textContent = 'Other Providers';
+            categoryDiv.appendChild(titleDiv);
+
+            const gridDiv = document.createElement('div');
+            gridDiv.className = 'provider-grid';
+
+            categorizedProviders.other.forEach(provider => {
+                const providerCard = document.createElement('div');
+                providerCard.className = 'provider-card';
+                providerCard.dataset.providerId = provider.id;
+
+                if (provider.id === currentProvider) {
+                    providerCard.classList.add('selected');
+                }
+
+                const nameDiv = document.createElement('div');
+                nameDiv.className = 'provider-name';
+                nameDiv.textContent = provider.displayName || provider.id;
+
+                const descDiv = document.createElement('div');
+                descDiv.className = 'provider-description';
+                descDiv.textContent = provider.description || '';
+
+                providerCard.appendChild(nameDiv);
+                providerCard.appendChild(descDiv);
+
+                providerCard.addEventListener('click', () => {
+                    logDebug(`Provider selected: ${provider.id}`);
+
+                    document.querySelectorAll('.provider-card').forEach(card => {
+                        card.classList.remove('selected');
+                    });
+                    providerCard.classList.add('selected');
+
+                    document.querySelector('.tab[data-tab="provider-settings"]').click();
+
+                    vscode.postMessage({
+                        command: 'selectProvider',
+                        providerId: provider.id
+                    });
+                });
+
+                gridDiv.appendChild(providerCard);
+            });
+
+            categoryDiv.appendChild(gridDiv);
+            providersContainer.appendChild(categoryDiv);
+        }
+
+        logDebug('Providers list rendered');
+    } catch (error) {
+        console.error('Error rendering providers list:', error);
+        logDebug(`Error rendering providers list: ${error.message}`);
+    }
+}
+
+/**
+ * Render GGUF models management UI
+ */
+function renderGGUFModels(models) {
+    try {
+        logDebug(`Rendering ${models.length} GGUF models`);
+        const modelsContainer = document.getElementById('gguf-models-list');
+
+        if (!modelsContainer) {
+            logDebug('GGUF models container not found');
+            return;
+        }
+
+        modelsContainer.innerHTML = '';
+
+        if (models.length === 0) {
+            modelsContainer.innerHTML = '<div class="no-items">No GGUF models available. Use the buttons above to add models.</div>';
+            return;
+        }
+
+        // Render each model
+        models.forEach(model => {
+            const modelItem = document.createElement('div');
+            modelItem.className = 'gguf-model-item';
+
+            const modelInfo = document.createElement('div');
+            modelInfo.className = 'gguf-model-info';
+
+            const modelName = document.createElement('div');
+            modelName.className = 'gguf-model-name';
+            modelName.textContent = model.name;
+
+            const modelPath = document.createElement('div');
+            modelPath.className = 'gguf-model-path';
+            modelPath.textContent = model.path;
+
+            modelInfo.appendChild(modelName);
+            modelInfo.appendChild(modelPath);
+
+            const modelSize = document.createElement('div');
+            modelSize.className = 'gguf-model-size';
+            modelSize.textContent = model.size;
+
+            const modelActions = document.createElement('div');
+            modelActions.className = 'gguf-model-actions-buttons';
+
+            // Add remove button
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'btn secondary';
+            removeBtn.textContent = 'Remove';
+            removeBtn.addEventListener('click', () => {
+                if (confirm(`Are you sure you want to remove the model '${model.name}'?`)) {
+                    vscode.postMessage({
+                        command: 'removeGGUFModel',
+                        modelId: model.id
+                    });
+                }
+            });
+
+            modelActions.appendChild(removeBtn);
+            modelItem.appendChild(modelInfo);
+            modelItem.appendChild(modelSize);
+            modelItem.appendChild(modelActions);
+
+            modelsContainer.appendChild(modelItem);
+        });
+
+        logDebug('GGUF models rendered');
+    } catch (error) {
+        console.error('Error rendering GGUF models:', error);
+        logDebug(`Error rendering GGUF models: ${error.message}`);
+    }
+}
+
 function updateProviderInfo() {
     try {
         logDebug('Updating provider information');
+
+        // Update current provider
+        currentProvider = providerMetadata.id || '';
 
         // Update provider display name
         const displayNameEl = document.getElementById('provider-display-name');
@@ -514,6 +905,17 @@ window.addEventListener('message', event => {
                 availableModels = message.models || [];
                 logDebug(`Received ${availableModels.length} models from extension`);
                 renderModels();
+                break;
+
+            case 'allProviders':
+                allProviders = message.providers || [];
+                logDebug(`Received ${allProviders.length} providers from extension`);
+                renderProvidersList();
+                break;
+
+            case 'ggufModels':
+                logDebug(`Received ${message.models.length} GGUF models from extension`);
+                renderGGUFModels(message.models);
                 break;
 
             case 'connectionTestResult':

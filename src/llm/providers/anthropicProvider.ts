@@ -1,4 +1,5 @@
-import { ILLMProvider, LLMGenerateParams, LLMGenerateResult, ToolCallRequest } from '../llmProvider';
+import { BaseLLMProvider } from './baseLLMProvider';
+import { LLMGenerateParams, LLMGenerateResult, ToolCallRequest } from '../llmProvider';
 import { getAnthropicApiKey } from '../../config';
 import { logger } from '../../logger';
 import * as vscode from 'vscode';
@@ -35,18 +36,20 @@ interface ContentBlock {
     input?: string;
 }
 
-export class AnthropicProvider implements ILLMProvider {
+export class AnthropicProvider extends BaseLLMProvider {
     readonly providerId = 'anthropic';
     readonly displayName = 'Anthropic';
     readonly description = 'Anthropic Claude AI models';
     readonly website = 'https://anthropic.com';
     readonly requiresApiKey = true;
     readonly supportsEndpointConfiguration = false;
+    readonly defaultEndpoint = 'https://api.anthropic.com';
     readonly defaultModel = 'claude-3-opus-20240229';
 
     private client: Anthropic | null = null;
 
-    constructor() {
+    constructor(context?: vscode.ExtensionContext) {
+        super(context);
         this.initializeClient();
 
         // Listen for configuration changes
@@ -59,7 +62,7 @@ export class AnthropicProvider implements ILLMProvider {
     }
 
     private initializeClient() {
-        const apiKey = getAnthropicApiKey();
+        const apiKey = this.config.apiKey;
 
         if (!apiKey) {
             logger.warn('Anthropic API key not set.');
@@ -284,24 +287,7 @@ export class AnthropicProvider implements ILLMProvider {
         }
     }
 
-    /**
-     * Get the configuration for this provider
-     */
-    public getConfig(): any {
-        return {
-            apiKey: getAnthropicApiKey(),
-            defaultModel: this.defaultModel
-        };
-    }
-
-    /**
-     * Update the provider configuration
-     */
-    public async updateConfig(config: any): Promise<void> {
-        // This is a placeholder - in the real implementation, we would update the configuration
-        // For now, we'll just log that this method was called
-        logger.info(`Anthropic provider updateConfig called with: ${JSON.stringify(config)}`);
-    }
+    // Use the parent class implementation for getConfig and updateConfig
 
     /**
      * Get the configuration fields for this provider
@@ -325,3 +311,4 @@ export class AnthropicProvider implements ILLMProvider {
         ];
     }
 }
+

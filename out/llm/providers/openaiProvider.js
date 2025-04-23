@@ -37,14 +37,15 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.OpenAIProvider = void 0;
-const config_1 = require("../../config");
+const baseLLMProvider_1 = require("./baseLLMProvider");
 const logger_1 = require("../../logger");
 const vscode = __importStar(require("vscode"));
 // Reference our custom type definitions
 /// <reference path="../../types/openai.d.ts" />
 const openai_1 = __importDefault(require("openai"));
-class OpenAIProvider {
-    constructor() {
+class OpenAIProvider extends baseLLMProvider_1.BaseLLMProvider {
+    constructor(context) {
+        super(context);
         this.providerId = 'openai';
         this.displayName = 'OpenAI';
         this.description = 'OpenAI API for GPT models';
@@ -53,31 +54,36 @@ class OpenAIProvider {
         this.supportsEndpointConfiguration = true;
         this.defaultEndpoint = 'https://api.openai.com/v1';
         this.defaultModel = 'gpt-4o';
+        this.supportsEmbeddings = true;
+        this.defaultEmbeddingModel = 'text-embedding-3-small';
         this.client = null;
         this.initializeClient();
         // Listen for configuration changes
         vscode.workspace.onDidChangeConfiguration(e => {
-            if (e.affectsConfiguration('codessa.providers.openai')) {
+            if (e.affectsConfiguration('codessa.llm.providers')) {
                 logger_1.logger.info("OpenAI configuration changed, re-initializing client.");
                 this.initializeClient();
             }
         });
     }
     initializeClient() {
-        const apiKey = (0, config_1.getOpenAIApiKey)();
-        const baseUrl = (0, config_1.getOpenAIBaseUrl)();
+        const apiKey = this.config.apiKey;
+        const baseUrl = this.config.apiEndpoint || this.defaultEndpoint;
         if (!apiKey) {
             logger_1.logger.warn('OpenAI API key not set.');
             this.client = null;
             return;
         }
-        const config = { apiKey };
-        if (baseUrl) {
-            config.baseURL = baseUrl;
-        }
         try {
+            // Initialize the OpenAI client with proper configuration
+            const config = {
+                apiKey,
+                baseURL: baseUrl,
+                timeout: 60000, // 60 seconds timeout
+                maxRetries: 3, // Retry failed requests up to 3 times
+            };
             this.client = new openai_1.default(config);
-            logger_1.logger.info('OpenAI client initialized.');
+            logger_1.logger.info('OpenAI client initialized successfully.');
         }
         catch (error) {
             logger_1.logger.error('Failed to initialize OpenAI client:', error);
@@ -262,11 +268,60 @@ class OpenAIProvider {
             const models = response.data
                 .filter((m) => m.id.includes('gpt') || m.id.includes('text-davinci'));
             logger_1.logger.info(`Provider openai has ${models.length} models available`);
-            return models.map((m) => ({ id: m.id })).sort((a, b) => a.id.localeCompare(b.id));
+            return models.map((m) => ({
+                id: m.id,
+                name: m.id,
+                description: `OpenAI ${m.id} model`,
+                contextWindow: this.getContextWindowForModel(m.id),
+                pricingInfo: this.getPricingInfoForModel(m.id)
+            })).sort((a, b) => a.id.localeCompare(b.id));
         }
         catch (error) {
             logger_1.logger.error('Failed to fetch OpenAI models:', error);
             return [];
+        }
+    }
+    /**
+     * Get the context window size for a specific model
+     */
+    getContextWindowForModel(modelId) {
+        // Context window sizes based on OpenAI documentation
+        const contextWindows = {
+            'gpt-4o': 128000,
+            'gpt-4o-mini': 128000,
+            'gpt-4-turbo': 128000,
+            'gpt-4': 8192,
+            'gpt-4-32k': 32768,
+            'gpt-3.5-turbo': 16385,
+            'gpt-3.5-turbo-16k': 16385,
+            // Default for unknown models
+            'default': 4096
+        };
+        // Check for exact matches
+        if (contextWindows[modelId]) {
+            return contextWindows[modelId];
+        }
+        // Check for partial matches
+        for (const [key, value] of Object.entries(contextWindows)) {
+            if (modelId.includes(key)) {
+                return value;
+            }
+        }
+        return contextWindows.default;
+    }
+    /**
+     * Get pricing information for a specific model
+     */
+    getPricingInfoForModel(modelId) {
+        // This is simplified pricing info - in a real implementation, you might want to provide more details
+        if (modelId.includes('gpt-4')) {
+            return 'Premium tier pricing';
+        }
+        else if (modelId.includes('gpt-3.5')) {
+            return 'Standard tier pricing';
+        }
+        else {
+            return 'See OpenAI pricing page';
         }
     }
     /**
@@ -310,27 +365,86 @@ class OpenAIProvider {
             };
         }
     }
+    // Use the parent class implementation for getConfig and updateConfig
     /**
-     * Get the configuration for this provider
+     * Generate an embedding vector for the given text
      */
-    getConfig() {
-        return {
-            apiKey: (0, config_1.getOpenAIApiKey)(),
-            apiEndpoint: (0, config_1.getOpenAIBaseUrl)(),
-            defaultModel: this.defaultModel
+    async generateEmbedding(text, modelId) {
+        if (!this.client) {
+            throw new Error('OpenAI provider not configured (API key missing?)');
+        }
+        try {
+            const embeddingModel = modelId || this.defaultEmbeddingModel;
+            logger_1.logger.debug(`Generating embedding with model ${embeddingModel}`);
+            const response = await this.client.embeddings.create({
+                model: embeddingModel,
+                input: text,
+                encoding_format: 'float'
+            });
+            return response.data[0].embedding;
+        }
+        catch (error) {
+            logger_1.logger.error('OpenAI embedding error:', error);
+            let errorMessage = 'Failed to generate embedding.';
+            if (error.status && error.message) {
+                errorMessage = `OpenAI API Error (${error.status}): ${error.message}`;
+            }
+            else if (error instanceof Error) {
+                errorMessage = error.message;
+            }
+            throw new Error(errorMessage);
+        }
+    }
+    /**
+     * List available embedding models
+     */
+    async listEmbeddingModels() {
+        if (!this.client) {
+            logger_1.logger.warn('Cannot fetch OpenAI embedding models, client not configured.');
+            return [];
+        }
+        try {
+            const response = await this.client.models.list();
+            // Filter for embedding models
+            const models = response.data
+                .filter((m) => m.id.includes('embedding'));
+            logger_1.logger.info(`Provider openai has ${models.length} embedding models available`);
+            return models.map((m) => ({
+                id: m.id,
+                name: m.id,
+                description: `OpenAI ${m.id} embedding model`,
+                contextWindow: this.getContextWindowForEmbeddingModel(m.id)
+            })).sort((a, b) => a.id.localeCompare(b.id));
+        }
+        catch (error) {
+            logger_1.logger.error('Failed to fetch OpenAI embedding models:', error);
+            return [];
+        }
+    }
+    /**
+     * Get the context window size for a specific embedding model
+     */
+    getContextWindowForEmbeddingModel(modelId) {
+        // Context window sizes based on OpenAI documentation
+        const contextWindows = {
+            'text-embedding-3-small': 8191,
+            'text-embedding-3-large': 8191,
+            'text-embedding-ada-002': 8191,
+            // Default for unknown models
+            'default': 2048
         };
+        // Check for exact matches
+        if (contextWindows[modelId]) {
+            return contextWindows[modelId];
+        }
+        // Check for partial matches
+        for (const [key, value] of Object.entries(contextWindows)) {
+            if (modelId.includes(key)) {
+                return value;
+            }
+        }
+        return contextWindows.default;
     }
-    /**
-     * Update the provider configuration
-     */
-    async updateConfig(config) {
-        // This is a placeholder - in the real implementation, we would update the configuration
-        // For now, we'll just log that this method was called
-        logger_1.logger.info(`OpenAI provider updateConfig called with: ${JSON.stringify(config)}`);
-    }
-    /**
-     * Get the configuration fields for this provider
-     */
     getConfigurationFields() {
         return [
             {
@@ -351,6 +465,13 @@ class OpenAIProvider {
                 id: 'defaultModel',
                 name: 'Default Model',
                 description: 'The default model to use (e.g., gpt-4o, gpt-3.5-turbo)',
+                required: false,
+                type: 'string'
+            },
+            {
+                id: 'defaultEmbeddingModel',
+                name: 'Default Embedding Model',
+                description: 'The default model to use for embeddings (e.g., text-embedding-3-small)',
                 required: false,
                 type: 'string'
             }

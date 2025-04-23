@@ -1,0 +1,3 @@
+2025-04-22 14:11:37.777 [info] Started initializing default profile extensions in extensions installation folder. file:///e%3A/_2025_Coding_Projects/AI/Codessa/.vscode-test/extensions
+2025-04-22 14:11:37.981 [warning] Failed to create default profile extensions manifest in extensions installation folder. file:///e%3A/_2025_Coding_Projects/AI/Codessa/.vscode-test/extensions Unable to create file 'vscode-userdata:/e:/_2025_Coding_Projects/AI/Codessa/.vscode-test/extensions/extensions.json' that already exists when overwrite flag is not set
+2025-04-22 14:11:37.981 [info] Completed initializing default profile extensions in extensions installation folder. file:///e%3A/_2025_Coding_Projects/AI/Codessa/.vscode-test/extensions

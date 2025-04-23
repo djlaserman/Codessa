@@ -74,7 +74,7 @@ var MistralAIProvider = /** @class */ (function () {
     MistralAIProvider.prototype.isConfigured = function () {
         return !!this.apiKey;
     };
-    MistralAIProvider.prototype.generate = function (_params, _cancellationToken) {
+    MistralAIProvider.prototype.generate = function (params, cancellationToken) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
                 if (!this.isConfigured()) {

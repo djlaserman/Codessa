@@ -77,7 +77,7 @@ export class LMStudioProvider extends BaseLLMProvider {
                 messages.push({
                     role: 'system',
                     content: params.systemPrompt
-                });
+                } as const);
             }
 
             // Add history messages if provided
@@ -87,7 +87,7 @@ export class LMStudioProvider extends BaseLLMProvider {
                 messages.push({
                     role: 'user',
                     content: params.prompt
-                });
+                } as const);
             }
 
             // Make the API request with retry logic
@@ -175,7 +175,7 @@ export class LMStudioProvider extends BaseLLMProvider {
                 messages.push({
                     role: 'system',
                     content: params.systemPrompt
-                });
+                } as const);
             }
 
             // Add history messages if provided
@@ -187,7 +187,7 @@ export class LMStudioProvider extends BaseLLMProvider {
             messages.push({
                 role: 'user',
                 content: params.prompt
-            });
+            } as const);
 
             // Make the streaming API request with retry logic
             const response = await this.withRetry(
@@ -487,3 +487,5 @@ export class LMStudioProvider extends BaseLLMProvider {
         ];
     }
 }
+
+

@@ -1,0 +1,133 @@
+:root {
+    --container-padding: 20px;
+    --input-padding-vertical: 6px;
+    --input-padding-horizontal: 4px;
+    --input-margin-vertical: 4px;
+    --input-margin-horizontal: 0;
+}
+
+body {
+    padding: 0;
+    margin: 0;
+    color: var(--vscode-foreground);
+    font-size: var(--vscode-font-size);
+    font-weight: var(--vscode-font-weight);
+    font-family: var(--vscode-font-family);
+    background-color: var(--vscode-editor-background);
+}
+
+.container {
+    padding: var(--container-padding);
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.header h1 {
+    margin: 0;
+    padding: 0;
+    font-size: 1.5em;
+}
+
+.actions {
+    display: flex;
+    gap: 10px;
+}
+
+button {
+    padding: 8px 12px;
+    border: none;
+    cursor: pointer;
+    background-color: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+    font-family: var(--vscode-font-family);
+    font-size: var(--vscode-font-size);
+    border-radius: 2px;
+}
+
+button:hover {
+    background-color: var(--vscode-button-hoverBackground);
+}
+
+.primary-button {
+    background-color: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+}
+
+.secondary-button {
+    background-color: var(--vscode-button-secondaryBackground);
+    color: var(--vscode-button-secondaryForeground);
+}
+
+.workflow-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.workflow-item {
+    background-color: var(--vscode-editor-inactiveSelectionBackground);
+    border-radius: 4px;
+    padding: 15px;
+    margin-bottom: 15px;
+    border-left: 4px solid var(--vscode-button-background);
+}
+
+.workflow-item.langgraph {
+    border-left: 4px solid var(--vscode-statusBarItem-prominentBackground);
+}
+
+.workflow-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.workflow-title {
+    font-size: 1.2em;
+    font-weight: bold;
+}
+
+.workflow-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.workflow-description {
+    margin-bottom: 10px;
+    color: var(--vscode-descriptionForeground);
+}
+
+.workflow-details {
+    display: flex;
+    gap: 15px;
+    font-size: 0.9em;
+    color: var(--vscode-descriptionForeground);
+}
+
+.empty-state {
+    text-align: center;
+    padding: 40px;
+    color: var(--vscode-descriptionForeground);
+}
+
+.empty-state p {
+    margin: 5px 0;
+}
+
+.run-workflow {
+    background-color: var(--vscode-button-background);
+}
+
+.edit-workflow {
+    background-color: var(--vscode-statusBarItem-warningBackground);
+}
+
+.delete-workflow {
+    background-color: var(--vscode-statusBarItem-errorBackground);
+}

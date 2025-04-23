@@ -10,9 +10,10 @@ class ToolTreeItem extends vscode.TreeItem {
     constructor(
         public readonly id: string,
         public readonly name: string,
-        public readonly description: string
+        public readonly description: string,
+        public readonly collapsible: boolean = false
     ) {
-        super(name, vscode.TreeItemCollapsibleState.None);
+        super(name, collapsible ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None);
 
         this.tooltip = description;
         this.contextValue = 'tool';
@@ -55,6 +56,25 @@ export class ToolsTreeDataProvider implements vscode.TreeDataProvider<vscode.Tre
             return Promise.resolve(this.getTools());
         }
 
+        // If the element is a parent tool with sub-actions, show its sub-actions
+        const id = (element as ToolTreeItem).id;
+        const tool = toolRegistry.getTool(id);
+        if (tool && tool.actions) {
+            return Promise.resolve(
+                Object.entries(tool.actions).map(([subId, subTool]) => {
+                    // subTool may be ToolAction or ITool; normalize to ITool shape for tree
+                    const name = (subTool as any).name || subId;
+                    const description = (subTool as any).description || '';
+                    const hasActions = !!(subTool as any).actions;
+                    return new ToolTreeItem(
+                        `${tool.id}.${subId}`,
+                        name,
+                        description,
+                        hasActions
+                    );
+                })
+            );
+        }
         return Promise.resolve([]);
     }
 
@@ -71,11 +91,18 @@ export class ToolsTreeDataProvider implements vscode.TreeDataProvider<vscode.Tre
                 ];
             }
 
-            return tools.map(tool => new ToolTreeItem(
-                tool.id,
-                tool.name || tool.id,
-                tool.description || ''
-            ));
+            // Show parent tools as collapsible if they have sub-actions
+            return tools.map(tool => {
+                const name = (tool as any).name || tool.id;
+                const description = (tool as any).description || '';
+                const hasActions = !!(tool as any).actions;
+                return new ToolTreeItem(
+                    tool.id,
+                    name,
+                    description,
+                    hasActions
+                );
+            });
         } catch (error) {
             logger.error('Error getting tools for tree view:', error);
             return [

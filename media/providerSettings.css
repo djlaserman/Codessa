@@ -268,3 +268,150 @@ label {
     margin-left: 10px;
     font-size: 0.9em;
 }
+
+/* Tabs styles */
+.tabs-container {
+    margin-bottom: 20px;
+}
+
+.tabs-header {
+    display: flex;
+    overflow-x: auto;
+    border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.tab {
+    padding: 10px 15px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    border-bottom: none;
+    margin-right: 5px;
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+    background-color: var(--vscode-tab-inactiveBackground);
+    color: var(--vscode-tab-inactiveForeground);
+}
+
+.tab:hover {
+    background-color: var(--vscode-tab-hoverBackground);
+}
+
+.tab.active {
+    background-color: var(--vscode-tab-activeBackground);
+    color: var(--vscode-tab-activeForeground);
+    border-color: var(--vscode-panel-border);
+    border-bottom: 1px solid var(--vscode-tab-activeBackground);
+    position: relative;
+    bottom: -1px;
+}
+
+.tab-content {
+    display: none;
+    padding: 15px 0;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* Provider category styles */
+.provider-category {
+    margin-bottom: 20px;
+}
+
+.provider-category-title {
+    font-size: 1.1em;
+    font-weight: 600;
+    margin-bottom: 10px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.provider-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.provider-card {
+    padding: 15px;
+    background-color: var(--vscode-editor-inactiveSelectionBackground);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.provider-card:hover {
+    background-color: var(--vscode-list-hoverBackground);
+}
+
+.provider-card.selected {
+    background-color: var(--vscode-list-activeSelectionBackground);
+    color: var(--vscode-list-activeSelectionForeground);
+}
+
+.provider-name {
+    font-weight: 500;
+    margin-bottom: 5px;
+}
+
+.provider-description {
+    font-size: 0.9em;
+    color: var(--vscode-descriptionForeground);
+    margin-bottom: 10px;
+}
+
+/* GGUF model management styles */
+.gguf-models-container {
+    margin-top: 20px;
+}
+
+.gguf-model-actions {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.gguf-model-list {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid var(--vscode-input-border);
+    background-color: var(--vscode-input-background);
+    border-radius: 2px;
+}
+
+.gguf-model-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.gguf-model-item:last-child {
+    border-bottom: none;
+}
+
+.gguf-model-info {
+    flex: 1;
+}
+
+.gguf-model-name {
+    font-weight: 500;
+}
+
+.gguf-model-path {
+    font-size: 0.85em;
+    color: var(--vscode-descriptionForeground);
+    margin-top: 3px;
+}
+
+.gguf-model-size {
+    font-size: 0.85em;
+    color: var(--vscode-descriptionForeground);
+}
+
+.gguf-model-actions-buttons {
+    display: flex;
+    gap: 5px;
+}

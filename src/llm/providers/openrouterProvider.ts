@@ -93,12 +93,12 @@ export class OpenRouterProvider extends BaseLLMProvider {
                     messages.push({
                         role: 'system',
                         content: params.systemPrompt
-                    });
+                    } as const);
                 }
                 messages.push({
                     role: 'user',
                     content: params.prompt
-                });
+                } as const);
             }
 
             // Format tools if provided
@@ -198,7 +198,7 @@ export class OpenRouterProvider extends BaseLLMProvider {
                 messages.push({
                     role: 'system',
                     content: params.systemPrompt
-                });
+                } as const);
             }
 
             // Add history messages if provided
@@ -210,7 +210,7 @@ export class OpenRouterProvider extends BaseLLMProvider {
             messages.push({
                 role: 'user',
                 content: params.prompt
-            });
+            } as const);
 
             // Make the streaming API request
             const response = await this.client.post('/chat/completions', {
@@ -370,3 +370,5 @@ export class OpenRouterProvider extends BaseLLMProvider {
         ];
     }
 }
+
+

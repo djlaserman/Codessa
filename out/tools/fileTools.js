@@ -38,18 +38,25 @@ const vscode = __importStar(require("vscode"));
 const logger_1 = require("../logger");
 const diffEngine_1 = require("../diff/diffEngine");
 const util_1 = require("util");
+const advancedFileTools_1 = require("./advancedFileTools");
 const decoder = new util_1.TextDecoder('utf-8');
 const encoder = new util_1.TextEncoder();
 class FileSystemTool {
     constructor() {
         this.id = 'file';
         this.name = 'File System Operations';
-        this.description = 'Provides actions to read, write, diff, and patch files in the workspace. Paths can be relative to the workspace root or absolute.';
+        this.description = 'Provides actions to read, write, diff, patch, create, delete, rename, copy files, and create/delete directories in the workspace. Paths can be relative to the workspace root or absolute.';
         this.actions = {
             'readFile': new ReadFileTool(),
             'writeFile': new WriteFileTool(),
             'createDiff': new CreateDiffTool(),
             'applyDiff': new ApplyDiffTool(),
+            'createFile': new advancedFileTools_1.CreateFileTool(),
+            'deleteFile': new advancedFileTools_1.DeleteFileTool(),
+            'renameFile': new advancedFileTools_1.RenameFileTool(),
+            'copyFile': new advancedFileTools_1.CopyFileTool(),
+            'createDir': new advancedFileTools_1.CreateDirectoryTool(),
+            'deleteDir': new advancedFileTools_1.DeleteDirectoryTool(),
         };
     }
     async execute(input, context) {

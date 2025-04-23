@@ -1,10 +1,11 @@
 import { logger } from '../logger';
 import { llmService } from '../llm/llmService';
 import { promptManager } from '../agents/promptManager';
-import { LLMConfig, AgentConfig, getMaxToolIterations, getDefaultModelConfig } from '../config';
+import { LLMConfig, AgentConfig, getMaxToolIterations, getDefaultModelConfig, getMemoryEnabled } from '../config';
 import { ITool, ToolInput, ToolResult } from '../tools/tool';
 import { toolRegistry } from '../tools/toolRegistry';
 import * as vscode from 'vscode';
+import { AgentMemory, getAgentMemory } from '../memory/agentMemory';
 
 export interface AgentRunInput {
     prompt: string;
@@ -67,6 +68,7 @@ export class Agent {
     readonly tools: Map<string, ITool>;
     readonly isSupervisor: boolean;
     readonly chainedAgentIds: string[];
+    private memory: AgentMemory;
 
     // Default LLM parameters for this agent
     private readonly defaultLLMParams = {
@@ -85,6 +87,14 @@ export class Agent {
         this.tools = toolRegistry.getToolsByIds(config.tools || []);
         this.isSupervisor = config.isSupervisor || false;
         this.chainedAgentIds = config.chainedAgentIds || [];
+        this.memory = getAgentMemory(this);
+    }
+
+    /**
+     * Get the agent's memory
+     */
+    getMemory(): AgentMemory {
+        return this.memory;
     }
 
     /**
@@ -144,6 +154,21 @@ export class Agent {
         if (!provider.isConfigured()) {
             logger.error(`Provider for agent '${this.name}' is not configured.`);
             return { success: false, error: 'LLM provider is not configured.' };
+        }
+
+        // Add user message to memory
+        if (getMemoryEnabled()) {
+            await this.memory.addMessage('user', input.prompt);
+
+            // Get relevant memories for this prompt
+            const relevantMemories = await this.memory.getRelevantMemories(input.prompt);
+
+            // If we have relevant memories, add them to the prompt
+            if (relevantMemories.length > 0) {
+                const memoryPrompt = this.memory.formatMemoriesForPrompt(relevantMemories);
+                input.prompt = memoryPrompt + input.prompt;
+                logger.debug(`Added ${relevantMemories.length} relevant memories to prompt`);
+            }
         }
 
         let iterations = 0;
@@ -238,6 +263,12 @@ export class Agent {
         }
 
         logger.info(`Agent '${this.name}' finished run in ${Date.now() - startTime}ms.`);
+
+        // Add assistant response to memory
+        if (getMemoryEnabled() && finalAnswer) {
+            await this.memory.addMessage('assistant', finalAnswer);
+        }
+
         return { success: true, output: finalAnswer, toolResults: toolResultsLog };
     }
 }

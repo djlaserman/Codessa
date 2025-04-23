@@ -34,18 +34,19 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.GoogleAIProvider = void 0;
-const config_1 = require("../../config");
+const baseLLMProvider_1 = require("./baseLLMProvider");
 const logger_1 = require("../../logger");
 const vscode = __importStar(require("vscode"));
-// import { GoogleGenerativeAI } from '@google/generative-ai'; // Uncomment and install if using the SDK
-class GoogleAIProvider {
-    constructor() {
+class GoogleAIProvider extends baseLLMProvider_1.BaseLLMProvider {
+    constructor(context) {
+        super(context);
         this.providerId = 'googleai';
         this.displayName = 'Google AI';
         this.description = 'Google Gemini AI models';
         this.website = 'https://ai.google.dev/';
         this.requiresApiKey = true;
         this.supportsEndpointConfiguration = false;
+        this.defaultEndpoint = 'https://generativelanguage.googleapis.com';
         this.defaultModel = 'gemini-pro';
         this.apiKey = null;
         this.initializeClient();
@@ -58,7 +59,7 @@ class GoogleAIProvider {
         });
     }
     initializeClient() {
-        this.apiKey = (0, config_1.getGoogleAIApiKey)();
+        this.apiKey = this.config.apiKey || null;
         if (!this.apiKey) {
             logger_1.logger.warn('Google AI API key not set.');
         }
@@ -129,22 +130,7 @@ class GoogleAIProvider {
             message: `Google AI provider is configured with model '${modelId}'. Note: This is a placeholder implementation.`
         };
     }
-    /**
-     * Get the configuration for this provider
-     */
-    getConfig() {
-        return {
-            apiKey: this.apiKey,
-            defaultModel: this.defaultModel
-        };
-    }
-    /**
-     * Update the provider configuration
-     */
-    async updateConfig(config) {
-        // This is a placeholder - in the real implementation, we would update the configuration
-        logger_1.logger.info(`Google AI provider updateConfig called with: ${JSON.stringify(config)}`);
-    }
+    // Use the parent class implementation for getConfig and updateConfig
     /**
      * Get the configuration fields for this provider
      */

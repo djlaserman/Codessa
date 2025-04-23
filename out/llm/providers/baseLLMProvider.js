@@ -36,7 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.BaseLLMProvider = void 0;
 const vscode = __importStar(require("vscode"));
 const logger_1 = require("../../logger");
-const providerSettings_1 = require("../providerSettings");
+const providerManager_1 = require("../providerManager");
 /**
  * Base class for LLM providers that implements common functionality
  */
@@ -54,13 +54,15 @@ class BaseLLMProvider {
     async loadConfig() {
         try {
             if (this.context) {
-                this.config = await providerSettings_1.providerSettingsManager.getInstance(this.context).getProviderConfig(this.providerId);
+                this.config = await providerManager_1.providerManager.getInstance(this.context).getProviderConfig(this.providerId);
                 logger_1.logger.debug(`Loaded configuration for provider ${this.providerId}`);
             }
             else {
                 // If no context, try to get config from workspace settings
-                const config = vscode.workspace.getConfiguration('codessa.llm.providers');
-                this.config = config.get(this.providerId) || {};
+                const config = vscode.workspace.getConfiguration('codessa.llm');
+                const providers = config.get('providers') || {};
+                this.config = providers[this.providerId] || {};
+                logger_1.logger.debug(`Loaded configuration for provider ${this.providerId} without context: ${JSON.stringify(this.config)}`);
             }
         }
         catch (error) {
@@ -89,12 +91,37 @@ class BaseLLMProvider {
     async updateConfig(config) {
         try {
             if (this.context) {
-                await providerSettings_1.providerSettingsManager.getInstance(this.context).updateProviderConfig(this.providerId, config);
+                const success = await providerManager_1.providerManager.getInstance(this.context).updateProviderConfig(this.providerId, config);
+                if (!success) {
+                    throw new Error(`Failed to update configuration for provider ${this.providerId}`);
+                }
             }
             else {
                 // If no context, update workspace settings directly
-                const vsConfig = vscode.workspace.getConfiguration('codessa.llm.providers');
-                await vsConfig.update(this.providerId, config, vscode.ConfigurationTarget.Global);
+                const vsConfig = vscode.workspace.getConfiguration('codessa.llm');
+                const providers = vsConfig.get('providers') || {};
+                // Update the specific provider in the providers object
+                const updatedProviders = {
+                    ...providers,
+                    [this.providerId]: config
+                };
+                // Update the entire providers object
+                try {
+                    // First try Global level
+                    await vsConfig.update('providers', updatedProviders, vscode.ConfigurationTarget.Global);
+                    logger_1.logger.info(`Updated global configuration for provider ${this.providerId}`);
+                }
+                catch (globalError) {
+                    logger_1.logger.warn(`Failed to update global configuration: ${globalError}. Trying workspace level...`);
+                    // Then try Workspace level if available
+                    if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
+                        await vsConfig.update('providers', updatedProviders, vscode.ConfigurationTarget.Workspace);
+                        logger_1.logger.info(`Updated workspace configuration for provider ${this.providerId}`);
+                    }
+                    else {
+                        throw new Error(`Failed to update configuration: No valid configuration target found`);
+                    }
+                }
             }
             this.config = config;
             logger_1.logger.info(`Updated configuration for provider ${this.providerId}`);

@@ -1,4 +1,5 @@
-import { ILLMProvider, LLMGenerateParams, LLMGenerateResult, ToolCallRequest } from '../llmProvider';
+import { LLMGenerateParams, LLMGenerateResult, LLMModelInfo, ToolCallRequest } from '../llmProvider';
+import { BaseLLMProvider } from './baseLLMProvider';
 import { getOpenAIApiKey, getOpenAIBaseUrl } from '../../config';
 import { logger } from '../../logger';
 import * as vscode from 'vscode';
@@ -8,7 +9,7 @@ import { ITool } from '../../tools/tool';
 /// <reference path="../../types/openai.d.ts" />
 import OpenAI, { ClientOptions, ChatCompletionTool, ChatCompletionMessageParam, ChatCompletionCreateParams } from 'openai';
 
-export class OpenAIProvider implements ILLMProvider {
+export class OpenAIProvider extends BaseLLMProvider {
     readonly providerId = 'openai';
     readonly displayName = 'OpenAI';
     readonly description = 'OpenAI API for GPT models';
@@ -17,15 +18,18 @@ export class OpenAIProvider implements ILLMProvider {
     readonly supportsEndpointConfiguration = true;
     readonly defaultEndpoint = 'https://api.openai.com/v1';
     readonly defaultModel = 'gpt-4o';
+    readonly supportsEmbeddings = true;
+    readonly defaultEmbeddingModel = 'text-embedding-3-small';
 
     private client: OpenAI | null = null;
 
-    constructor() {
+    constructor(context?: vscode.ExtensionContext) {
+        super(context);
         this.initializeClient();
 
         // Listen for configuration changes
         vscode.workspace.onDidChangeConfiguration(e => {
-            if (e.affectsConfiguration('codessa.providers.openai')) {
+            if (e.affectsConfiguration('codessa.llm.providers')) {
                 logger.info("OpenAI configuration changed, re-initializing client.");
                 this.initializeClient();
             }
@@ -33,8 +37,8 @@ export class OpenAIProvider implements ILLMProvider {
     }
 
     private initializeClient() {
-        const apiKey = getOpenAIApiKey();
-        const baseUrl = getOpenAIBaseUrl();
+        const apiKey = this.config.apiKey;
+        const baseUrl = this.config.apiEndpoint || this.defaultEndpoint;
 
         if (!apiKey) {
             logger.warn('OpenAI API key not set.');
@@ -42,14 +46,17 @@ export class OpenAIProvider implements ILLMProvider {
             return;
         }
 
-        const config: ClientOptions = { apiKey };
-        if (baseUrl) {
-            config.baseURL = baseUrl;
-        }
-
         try {
+            // Initialize the OpenAI client with proper configuration
+            const config: ClientOptions = {
+                apiKey,
+                baseURL: baseUrl,
+                timeout: 60000, // 60 seconds timeout
+                maxRetries: 3,  // Retry failed requests up to 3 times
+            };
+
             this.client = new OpenAI(config);
-            logger.info('OpenAI client initialized.');
+            logger.info('OpenAI client initialized successfully.');
         } catch (error) {
             logger.error('Failed to initialize OpenAI client:', error);
             this.client = null;
@@ -243,7 +250,7 @@ export class OpenAIProvider implements ILLMProvider {
         }
     }
 
-    async listModels(): Promise<{id: string}[]> {
+    async listModels(): Promise<LLMModelInfo[]> {
         if (!this.client) {
             logger.warn('Cannot fetch OpenAI models, client not configured.');
             return [];
@@ -254,13 +261,65 @@ export class OpenAIProvider implements ILLMProvider {
             const models = response.data
                 .filter((m: any) => m.id.includes('gpt') || m.id.includes('text-davinci'));
             logger.info(`Provider openai has ${models.length} models available`);
-            return models.map((m: any) => ({ id: m.id })).sort((a, b) => a.id.localeCompare(b.id));
+
+            return models.map((m: any) => ({
+                id: m.id,
+                name: m.id,
+                description: `OpenAI ${m.id} model`,
+                contextWindow: this.getContextWindowForModel(m.id),
+                pricingInfo: this.getPricingInfoForModel(m.id)
+            })).sort((a, b) => a.id.localeCompare(b.id));
         } catch (error: any) {
             logger.error('Failed to fetch OpenAI models:', error);
             return [];
         }
     }
 
+    /**
+     * Get the context window size for a specific model
+     */
+    private getContextWindowForModel(modelId: string): number {
+        // Context window sizes based on OpenAI documentation
+        const contextWindows: Record<string, number> = {
+            'gpt-4o': 128000,
+            'gpt-4o-mini': 128000,
+            'gpt-4-turbo': 128000,
+            'gpt-4': 8192,
+            'gpt-4-32k': 32768,
+            'gpt-3.5-turbo': 16385,
+            'gpt-3.5-turbo-16k': 16385,
+            // Default for unknown models
+            'default': 4096
+        };
+
+        // Check for exact matches
+        if (contextWindows[modelId]) {
+            return contextWindows[modelId];
+        }
+
+        // Check for partial matches
+        for (const [key, value] of Object.entries(contextWindows)) {
+            if (modelId.includes(key)) {
+                return value;
+            }
+        }
+
+        return contextWindows.default;
+    }
+
+    /**
+     * Get pricing information for a specific model
+     */
+    private getPricingInfoForModel(modelId: string): string {
+        // This is simplified pricing info - in a real implementation, you might want to provide more details
+        if (modelId.includes('gpt-4')) {
+            return 'Premium tier pricing';
+        } else if (modelId.includes('gpt-3.5')) {
+            return 'Standard tier pricing';
+        } else {
+            return 'See OpenAI pricing page';
+        }
+    }
     /**
      * Test connection to OpenAI
      */
@@ -307,29 +366,98 @@ export class OpenAIProvider implements ILLMProvider {
         }
     }
 
+    // Use the parent class implementation for getConfig and updateConfig
+
     /**
-     * Get the configuration for this provider
+     * Generate an embedding vector for the given text
      */
-    public getConfig(): any {
-        return {
-            apiKey: getOpenAIApiKey(),
-            apiEndpoint: getOpenAIBaseUrl(),
-            defaultModel: this.defaultModel
+    async generateEmbedding(text: string, modelId?: string): Promise<number[]> {
+        if (!this.client) {
+            throw new Error('OpenAI provider not configured (API key missing?)');
+        }
+
+        try {
+            const embeddingModel = modelId || this.defaultEmbeddingModel;
+            logger.debug(`Generating embedding with model ${embeddingModel}`);
+
+            const response = await this.client.embeddings.create({
+                model: embeddingModel,
+                input: text,
+                encoding_format: 'float'
+            });
+
+            return response.data[0].embedding;
+        } catch (error: any) {
+            logger.error('OpenAI embedding error:', error);
+            let errorMessage = 'Failed to generate embedding.';
+
+            if (error.status && error.message) {
+                errorMessage = `OpenAI API Error (${error.status}): ${error.message}`;
+            } else if (error instanceof Error) {
+                errorMessage = error.message;
+            }
+
+            throw new Error(errorMessage);
+        }
+    }
+
+    /**
+     * List available embedding models
+     */
+    async listEmbeddingModels(): Promise<LLMModelInfo[]> {
+        if (!this.client) {
+            logger.warn('Cannot fetch OpenAI embedding models, client not configured.');
+            return [];
+        }
+
+        try {
+            const response = await this.client.models.list();
+            // Filter for embedding models
+            const models = response.data
+                .filter((m: any) => m.id.includes('embedding'));
+
+            logger.info(`Provider openai has ${models.length} embedding models available`);
+
+            return models.map((m: any) => ({
+                id: m.id,
+                name: m.id,
+                description: `OpenAI ${m.id} embedding model`,
+                contextWindow: this.getContextWindowForEmbeddingModel(m.id)
+            })).sort((a, b) => a.id.localeCompare(b.id));
+        } catch (error: any) {
+            logger.error('Failed to fetch OpenAI embedding models:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Get the context window size for a specific embedding model
+     */
+    private getContextWindowForEmbeddingModel(modelId: string): number {
+        // Context window sizes based on OpenAI documentation
+        const contextWindows: Record<string, number> = {
+            'text-embedding-3-small': 8191,
+            'text-embedding-3-large': 8191,
+            'text-embedding-ada-002': 8191,
+            // Default for unknown models
+            'default': 2048
         };
+
+        // Check for exact matches
+        if (contextWindows[modelId]) {
+            return contextWindows[modelId];
+        }
+
+        // Check for partial matches
+        for (const [key, value] of Object.entries(contextWindows)) {
+            if (modelId.includes(key)) {
+                return value;
+            }
+        }
+
+        return contextWindows.default;
     }
 
-    /**
-     * Update the provider configuration
-     */
-    public async updateConfig(config: any): Promise<void> {
-        // This is a placeholder - in the real implementation, we would update the configuration
-        // For now, we'll just log that this method was called
-        logger.info(`OpenAI provider updateConfig called with: ${JSON.stringify(config)}`);
-    }
-
-    /**
-     * Get the configuration fields for this provider
-     */
     public getConfigurationFields(): Array<{id: string, name: string, description: string, required: boolean, type: 'string' | 'boolean' | 'number' | 'select', options?: string[]}> {
         return [
             {
@@ -350,6 +478,13 @@ export class OpenAIProvider implements ILLMProvider {
                 id: 'defaultModel',
                 name: 'Default Model',
                 description: 'The default model to use (e.g., gpt-4o, gpt-3.5-turbo)',
+                required: false,
+                type: 'string'
+            },
+            {
+                id: 'defaultEmbeddingModel',
+                name: 'Default Embedding Model',
+                description: 'The default model to use for embeddings (e.g., text-embedding-3-small)',
                 required: false,
                 type: 'string'
             }

@@ -20,13 +20,48 @@ export async function setConfig<T>(
     key: string,
     value: T,
     target: vscode.ConfigurationTarget = vscode.ConfigurationTarget.Global
-): Promise<void> {
+): Promise<boolean> {
     try {
         const config = vscode.workspace.getConfiguration('codessa');
-        await config.update(key, value, target);
+
+        // Try with the specified target first
+        try {
+            await config.update(key, value, target);
+            console.log(`Updated configuration key 'codessa.${key}' at target level ${target}`);
+            return true;
+        } catch (targetError) {
+            console.warn(`Failed to update at target level ${target}: ${targetError}. Trying alternative targets...`);
+        }
+
+        // If the specified target fails, try Global
+        if (target !== vscode.ConfigurationTarget.Global) {
+            try {
+                await config.update(key, value, vscode.ConfigurationTarget.Global);
+                console.log(`Updated configuration key 'codessa.${key}' at Global level`);
+                return true;
+            } catch (globalError) {
+                console.warn(`Failed to update at Global level: ${globalError}. Trying Workspace level...`);
+            }
+        }
+
+        // If Global fails, try Workspace if available
+        if (target !== vscode.ConfigurationTarget.Workspace &&
+            vscode.workspace.workspaceFolders &&
+            vscode.workspace.workspaceFolders.length > 0) {
+            try {
+                await config.update(key, value, vscode.ConfigurationTarget.Workspace);
+                console.log(`Updated configuration key 'codessa.${key}' at Workspace level`);
+                return true;
+            } catch (workspaceError) {
+                console.warn(`Failed to update at Workspace level: ${workspaceError}`);
+            }
+        }
+
+        // If we get here, all attempts failed
+        throw new Error(`Failed to update setting 'codessa.${key}' at any target level`);
     } catch (error) {
         console.error(`Error writing configuration key 'codessa.${key}':`, error);
-        throw new Error(`Failed to update setting 'codessa.${key}': ${error}`);
+        return false;
     }
 }
 
@@ -49,6 +84,27 @@ export function getDefaultModelConfig(): LLMConfig {
         }
     };
     return getConfig<LLMConfig>('defaultModel', defaultConfig);
+}
+
+// Memory settings
+export function getMemoryEnabled(): boolean {
+    return getConfig<boolean>('memory.enabled', true);
+}
+
+export function getMaxMemories(): number {
+    return getConfig<number>('memory.maxMemories', 1000);
+}
+
+export function getMemoryRelevanceThreshold(): number {
+    return getConfig<number>('memory.relevanceThreshold', 0.7);
+}
+
+export function getMemoryContextWindowSize(): number {
+    return getConfig<number>('memory.contextWindowSize', 5);
+}
+
+export function getConversationHistorySize(): number {
+    return getConfig<number>('memory.conversationHistorySize', 100);
 }
 
 // Provider configurations
@@ -90,8 +146,8 @@ export function getAgents(): AgentConfig[] {
     return getConfig<AgentConfig[]>('agents', []);
 }
 
-export async function saveAgents(agents: AgentConfig[]): Promise<void> {
-    await setConfig('agents', agents);
+export async function saveAgents(agents: AgentConfig[]): Promise<boolean> {
+    return await setConfig('agents', agents);
 }
 
 // Prompt configuration

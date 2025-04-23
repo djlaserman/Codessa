@@ -1,3 +1,0 @@
-@echo off
-echo Running Codessa extension in VS Code...
-"C:\Users\djlas\AppData\Local\Programs\Microsoft VS Code\bin\code" --extensionDevelopmentPath=%CD% .

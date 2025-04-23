@@ -1,21 +1,24 @@
-import { ILLMProvider, LLMGenerateParams, LLMGenerateResult } from '../llmProvider';
+import { BaseLLMProvider } from './baseLLMProvider';
+import { LLMGenerateParams, LLMGenerateResult } from '../llmProvider';
 import { getGoogleAIApiKey } from '../../config';
 import { logger } from '../../logger';
 import * as vscode from 'vscode';
-// import { GoogleGenerativeAI } from '@google/generative-ai'; // Uncomment and install if using the SDK
+// Gemini AI SDK import removed. Using direct REST API calls instead.
 
-export class GoogleAIProvider implements ILLMProvider {
+export class GoogleAIProvider extends BaseLLMProvider {
     readonly providerId = 'googleai';
     readonly displayName = 'Google AI';
     readonly description = 'Google Gemini AI models';
     readonly website = 'https://ai.google.dev/';
     readonly requiresApiKey = true;
     readonly supportsEndpointConfiguration = false;
+    readonly defaultEndpoint = 'https://generativelanguage.googleapis.com';
     readonly defaultModel = 'gemini-pro';
 
     private apiKey: string | null = null;
 
-    constructor() {
+    constructor(context?: vscode.ExtensionContext) {
+        super(context);
         this.initializeClient();
 
         // Listen for configuration changes
@@ -51,13 +54,39 @@ export class GoogleAIProvider implements ILLMProvider {
             };
         }
 
-        // Placeholder for actual implementation
-        logger.warn("Google AI provider is a placeholder and not fully implemented yet.");
-        return {
-            content: 'Google AI provider is not fully implemented yet.',
-            finishReason: 'not_implemented',
-            error: 'Provider not fully implemented'
-        };
+        try {
+            // Example REST API call to Google Gemini AI
+            const fetch = require('node-fetch');
+            const response = await fetch(`${this.defaultEndpoint}/v1beta/models/${this.defaultModel}:generateContent`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.apiKey}`
+                },
+                body: JSON.stringify({
+                    contents: Array.isArray((_params as any).contents) ? (_params as any).contents : [],
+                    ..._params
+                })
+            });
+            const data = await response.json();
+            if (response.ok && data.candidates && data.candidates.length > 0 && data.candidates[0].content && Array.isArray(data.candidates[0].content.parts) && data.candidates[0].content.parts[0]?.text) {
+                return {
+                    content: data.candidates[0].content.parts[0].text,
+                    finishReason: data.candidates[0].finishReason || 'stop',
+                    error: undefined
+                };
+            } else {
+                return {
+                    content: '',
+                    error: data.error && data.error.message ? data.error.message : 'Unknown error from Google Gemini AI'
+                };
+            }
+        } catch (err: any) {
+            return {
+                content: '',
+                error: 'Google Gemini AI API call failed: ' + (err && err.message ? err.message : String(err))
+            };
+        }
     }
 
     async getAvailableModels(): Promise<string[]> {
@@ -110,23 +139,7 @@ export class GoogleAIProvider implements ILLMProvider {
         };
     }
 
-    /**
-     * Get the configuration for this provider
-     */
-    public getConfig(): any {
-        return {
-            apiKey: this.apiKey,
-            defaultModel: this.defaultModel
-        };
-    }
-
-    /**
-     * Update the provider configuration
-     */
-    public async updateConfig(config: any): Promise<void> {
-        // This is a placeholder - in the real implementation, we would update the configuration
-        logger.info(`Google AI provider updateConfig called with: ${JSON.stringify(config)}`);
-    }
+    // Use the parent class implementation for getConfig and updateConfig
 
     /**
      * Get the configuration fields for this provider
@@ -150,3 +163,5 @@ export class GoogleAIProvider implements ILLMProvider {
         ];
     }
 }
+
+

@@ -2,23 +2,39 @@ import * as vscode from 'vscode';
 import { ILLMProvider, LLMProviderConfig } from './llmProvider';
 import { logger } from '../logger';
 import { LLMConfig, getDefaultModelConfig } from '../config';
-import { providerSettingsManager } from './providerSettings';
+import { providerManager } from './providerManager';
 
 // Import all providers
+// Standard API providers
 import { OpenAIProvider } from './providers/openaiProvider';
-import { OllamaProvider } from './providers/ollamaProvider';
+import { AnthropicProvider } from './providers/anthropicProvider';
 import { GoogleAIProvider } from './providers/googleAIProvider';
 import { MistralAIProvider } from './providers/mistralAIProvider';
-import { AnthropicProvider } from './providers/anthropicProvider';
-import { LMStudioProvider } from './providers/lmstudioProvider';
-import { OpenRouterProvider } from './providers/openrouterProvider';
-import { HuggingFaceProvider } from './providers/huggingfaceProvider';
 import { CohereProvider } from './providers/cohereProvider';
 import { DeepSeekProvider } from './providers/deepseekProvider';
-// import { AI21Provider } from './providers/ai21Provider';
-// import { AlephAlphaProvider } from './providers/alephalphaprovider';
-// import { TogetherAIProvider } from './providers/togetheraiProvider';
-// import { PerplexityAIProvider } from './providers/perplexityProvider';
+
+// Local and self-hosted providers
+import { OllamaProvider } from './providers/ollamaProvider';
+import { LMStudioProvider } from './providers/lmstudioProvider';
+
+// Aggregator providers
+import { OpenRouterProvider } from './providers/openrouterProvider';
+import { HuggingFaceProvider } from './providers/huggingfaceProvider';
+
+// Code-specific model providers
+import { StarCoderProvider } from './providers/starcoderProvider';
+import { CodeLlamaProvider } from './providers/codeLlamaProvider';
+import { ReplitProvider } from './providers/replitProvider';
+import { WizardCoderProvider } from './providers/wizardCoderProvider';
+import { XwinCoderProvider } from './providers/xwinCoderProvider';
+import { PhiProvider } from './providers/phiProvider';
+import { YiCodeProvider } from './providers/yiCodeProvider';
+import { CodeGemmaProvider } from './providers/codeGemmaProvider';
+import { SantaCoderProvider } from './providers/santaCoderProvider';
+import { StableCodeProvider } from './providers/stableCodeProvider';
+
+// Additional API providers
+import { PerplexityAIProvider } from './providers/perplexityProvider';
 
 /**
  * Service that manages LLM providers and model selection
@@ -45,6 +61,11 @@ class LLMService {
      */
     public initialize(context: vscode.ExtensionContext): void {
         this.context = context;
+        logger.info('Initializing LLM service...');
+
+        // Initialize the provider manager
+        providerManager.getInstance(context);
+
         this.initializeProviders();
     }
 
@@ -59,23 +80,36 @@ class LLMService {
 
         // Register all providers
         const providerFactories = [
-            // Register built-in providers
-            { id: 'ollama', factory: () => new OllamaProvider() },
-            { id: 'openai', factory: () => new OpenAIProvider() },
-            { id: 'anthropic', factory: () => new AnthropicProvider() },
-            { id: 'googleai', factory: () => new GoogleAIProvider() },
-            { id: 'mistralai', factory: () => new MistralAIProvider() },
+            // Standard API providers
+            { id: 'openai', factory: () => new OpenAIProvider(this.context!) },
+            { id: 'anthropic', factory: () => new AnthropicProvider(this.context!) },
+            { id: 'googleai', factory: () => new GoogleAIProvider(this.context!) },
+            { id: 'mistralai', factory: () => new MistralAIProvider(this.context!) },
+            { id: 'cohere', factory: () => new CohereProvider(this.context!) },
+            { id: 'deepseek', factory: () => new DeepSeekProvider(this.context!) },
+
+            // Local and self-hosted providers
+            { id: 'ollama', factory: () => new OllamaProvider(this.context!) },
             { id: 'lmstudio', factory: () => new LMStudioProvider(this.context!) },
+
+            // Aggregator providers
             { id: 'openrouter', factory: () => new OpenRouterProvider(this.context!) },
             { id: 'huggingface', factory: () => new HuggingFaceProvider(this.context!) },
-            { id: 'deepseek', factory: () => new DeepSeekProvider(this.context!) },
-            { id: 'cohere', factory: () => new CohereProvider(this.context!) },
 
-            // These will be implemented later
-            // { id: 'ai21', factory: () => new AI21Provider(this.context!) },
-            // { id: 'alephalpha', factory: () => new AlephAlphaProvider(this.context!) },
-            // { id: 'togetherai', factory: () => new TogetherAIProvider(this.context!) },
-            // { id: 'perplexity', factory: () => new PerplexityAIProvider(this.context!) }
+            // Code-specific model providers
+            { id: 'starcoder', factory: () => new StarCoderProvider(this.context!) },
+            { id: 'codellama', factory: () => new CodeLlamaProvider(this.context!) },
+            { id: 'replit', factory: () => new ReplitProvider(this.context!) },
+            { id: 'wizardcoder', factory: () => new WizardCoderProvider(this.context!) },
+            { id: 'xwincoder', factory: () => new XwinCoderProvider(this.context!) },
+            { id: 'phi', factory: () => new PhiProvider(this.context!) },
+            { id: 'yicode', factory: () => new YiCodeProvider(this.context!) },
+            { id: 'codegemma', factory: () => new CodeGemmaProvider(this.context!) },
+            { id: 'santacoder', factory: () => new SantaCoderProvider(this.context!) },
+            { id: 'stablecode', factory: () => new StableCodeProvider(this.context!) },
+
+            // Additional API providers
+            { id: 'perplexity', factory: () => new PerplexityAIProvider(this.context!) }
         ];
 
         // Register each provider
@@ -141,6 +175,11 @@ class LLMService {
             logger.warn(`Provider with ID '${provider.providerId}' is already registered. Overwriting.`);
         }
         this.providers.set(provider.providerId, provider);
+
+        // Also register with the provider manager
+        if (this.context) {
+            providerManager.getInstance(this.context).registerProvider(provider);
+        }
     }
 
     /**
@@ -179,7 +218,7 @@ class LLMService {
         }
 
         // Get default provider ID from settings
-        const defaultProviderId = providerSettingsManager.getInstance(this.context).getDefaultProviderId();
+        const defaultProviderId = providerManager.getInstance(this.context).getDefaultProviderId();
         const provider = this.providers.get(defaultProviderId);
 
         // If the default provider is not available or not configured, try to find another configured provider
@@ -211,9 +250,14 @@ class LLMService {
         }
 
         try {
-            await providerSettingsManager.getInstance(this.context).setDefaultProviderId(providerId);
-            logger.info(`Set default provider to ${providerId}`);
-            return true;
+            const success = await providerManager.getInstance(this.context).setDefaultProviderId(providerId);
+            if (success) {
+                logger.info(`Set default provider to ${providerId}`);
+                return true;
+            } else {
+                logger.error(`Failed to set default provider to ${providerId}`);
+                return false;
+            }
         } catch (error) {
             logger.error(`Failed to set default provider to ${providerId}:`, error);
             return false;

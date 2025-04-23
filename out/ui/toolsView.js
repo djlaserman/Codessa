@@ -43,11 +43,12 @@ const path = __importStar(require("path"));
  * TreeItem representing a Tool in the sidebar tree view
  */
 class ToolTreeItem extends vscode.TreeItem {
-    constructor(id, name, description) {
-        super(name, vscode.TreeItemCollapsibleState.None);
+    constructor(id, name, description, collapsible = false) {
+        super(name, collapsible ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None);
         this.id = id;
         this.name = name;
         this.description = description;
+        this.collapsible = collapsible;
         this.tooltip = description;
         this.contextValue = 'tool';
         // Set icon
@@ -85,6 +86,18 @@ class ToolsTreeDataProvider {
             // Root level - show all tools
             return Promise.resolve(this.getTools());
         }
+        // If the element is a parent tool with sub-actions, show its sub-actions
+        const id = element.id;
+        const tool = toolRegistry_1.toolRegistry.getTool(id);
+        if (tool && tool.actions) {
+            return Promise.resolve(Object.entries(tool.actions).map(([subId, subTool]) => {
+                // subTool may be ToolAction or ITool; normalize to ITool shape for tree
+                const name = subTool.name || subId;
+                const description = subTool.description || '';
+                const hasActions = !!subTool.actions;
+                return new ToolTreeItem(`${tool.id}.${subId}`, name, description, hasActions);
+            }));
+        }
         return Promise.resolve([]);
     }
     /**
@@ -98,7 +111,13 @@ class ToolsTreeDataProvider {
                     new vscode.TreeItem('No tools available', vscode.TreeItemCollapsibleState.None)
                 ];
             }
-            return tools.map(tool => new ToolTreeItem(tool.id, tool.name || tool.id, tool.description || ''));
+            // Show parent tools as collapsible if they have sub-actions
+            return tools.map(tool => {
+                const name = tool.name || tool.id;
+                const description = tool.description || '';
+                const hasActions = !!tool.actions;
+                return new ToolTreeItem(tool.id, name, description, hasActions);
+            });
         }
         catch (error) {
             logger_1.logger.error('Error getting tools for tree view:', error);

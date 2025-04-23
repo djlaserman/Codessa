@@ -38,6 +38,11 @@ exports.setConfig = setConfig;
 exports.getLogLevel = getLogLevel;
 exports.getMaxToolIterations = getMaxToolIterations;
 exports.getDefaultModelConfig = getDefaultModelConfig;
+exports.getMemoryEnabled = getMemoryEnabled;
+exports.getMaxMemories = getMaxMemories;
+exports.getMemoryRelevanceThreshold = getMemoryRelevanceThreshold;
+exports.getMemoryContextWindowSize = getMemoryContextWindowSize;
+exports.getConversationHistorySize = getConversationHistorySize;
 exports.getOpenAIApiKey = getOpenAIApiKey;
 exports.getOpenAIBaseUrl = getOpenAIBaseUrl;
 exports.getOpenAIOrganization = getOpenAIOrganization;
@@ -70,11 +75,45 @@ function getConfig(key, defaultValue) {
 async function setConfig(key, value, target = vscode.ConfigurationTarget.Global) {
     try {
         const config = vscode.workspace.getConfiguration('codessa');
-        await config.update(key, value, target);
+        // Try with the specified target first
+        try {
+            await config.update(key, value, target);
+            console.log(`Updated configuration key 'codessa.${key}' at target level ${target}`);
+            return true;
+        }
+        catch (targetError) {
+            console.warn(`Failed to update at target level ${target}: ${targetError}. Trying alternative targets...`);
+        }
+        // If the specified target fails, try Global
+        if (target !== vscode.ConfigurationTarget.Global) {
+            try {
+                await config.update(key, value, vscode.ConfigurationTarget.Global);
+                console.log(`Updated configuration key 'codessa.${key}' at Global level`);
+                return true;
+            }
+            catch (globalError) {
+                console.warn(`Failed to update at Global level: ${globalError}. Trying Workspace level...`);
+            }
+        }
+        // If Global fails, try Workspace if available
+        if (target !== vscode.ConfigurationTarget.Workspace &&
+            vscode.workspace.workspaceFolders &&
+            vscode.workspace.workspaceFolders.length > 0) {
+            try {
+                await config.update(key, value, vscode.ConfigurationTarget.Workspace);
+                console.log(`Updated configuration key 'codessa.${key}' at Workspace level`);
+                return true;
+            }
+            catch (workspaceError) {
+                console.warn(`Failed to update at Workspace level: ${workspaceError}`);
+            }
+        }
+        // If we get here, all attempts failed
+        throw new Error(`Failed to update setting 'codessa.${key}' at any target level`);
     }
     catch (error) {
         console.error(`Error writing configuration key 'codessa.${key}':`, error);
-        throw new Error(`Failed to update setting 'codessa.${key}': ${error}`);
+        return false;
     }
 }
 // Core settings
@@ -94,6 +133,22 @@ function getDefaultModelConfig() {
         }
     };
     return getConfig('defaultModel', defaultConfig);
+}
+// Memory settings
+function getMemoryEnabled() {
+    return getConfig('memory.enabled', true);
+}
+function getMaxMemories() {
+    return getConfig('memory.maxMemories', 1000);
+}
+function getMemoryRelevanceThreshold() {
+    return getConfig('memory.relevanceThreshold', 0.7);
+}
+function getMemoryContextWindowSize() {
+    return getConfig('memory.contextWindowSize', 5);
+}
+function getConversationHistorySize() {
+    return getConfig('memory.conversationHistorySize', 100);
 }
 // Provider configurations
 function getOpenAIApiKey() {
@@ -126,7 +181,7 @@ function getAgents() {
     return getConfig('agents', []);
 }
 async function saveAgents(agents) {
-    await setConfig('agents', agents);
+    return await setConfig('agents', agents);
 }
 // Prompt configuration
 function getSystemPrompts() {

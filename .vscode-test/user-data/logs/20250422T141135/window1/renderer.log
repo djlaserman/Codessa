@@ -1,0 +1,15 @@
+2025-04-22 14:11:37.068 [warning] Via 'product.json#extensionEnabledApiProposals' extension 'ms-python.python' wants API proposal 'terminalShellType' but that proposal DOES NOT EXIST. Likely, the proposal has been finalized (check 'vscode.d.ts') or was abandoned.
+2025-04-22 14:11:37.079 [warning] Via 'product.json#extensionEnabledApiProposals' extension 'ms-python.vscode-python-envs' wants API proposal 'terminalShellType' but that proposal DOES NOT EXIST. Likely, the proposal has been finalized (check 'vscode.d.ts') or was abandoned.
+2025-04-22 14:11:37.079 [warning] Via 'product.json#extensionEnabledApiProposals' extension 'github.copilot-chat' wants API proposal 'chatReadonlyPromptReference' but that proposal DOES NOT EXIST. Likely, the proposal has been finalized (check 'vscode.d.ts') or was abandoned.
+2025-04-22 14:11:37.250 [info] ChatSessionStore: Migrating 0 chat sessions from storage service to file system
+2025-04-22 14:11:37.461 [info] Started local extension host with pid 57324.
+2025-04-22 14:11:37.499 [info] Started initializing default profile extensions in extensions installation folder. file:///e%3A/_2025_Coding_Projects/AI/Codessa/.vscode-test/extensions
+2025-04-22 14:11:38.101 [info] Completed initializing default profile extensions in extensions installation folder. file:///e%3A/_2025_Coding_Projects/AI/Codessa/.vscode-test/extensions
+2025-04-22 14:11:39.035 [info] Settings Sync: Account status changed from uninitialized to unavailable
+2025-04-22 14:11:42.045 [info] [perf] Render performance baseline is 16ms
+2025-04-22 17:11:41.616 [warning] Failed to fetch chat participant registry Failed to fetch
+2025-04-22 17:16:41.622 [warning] Failed to fetch chat participant registry Failed to fetch
+2025-04-22 17:21:41.641 [warning] Failed to fetch chat participant registry Failed to fetch
+2025-04-22 17:26:41.657 [warning] Failed to fetch chat participant registry Failed to fetch
+2025-04-22 17:31:43.867 [warning] Failed to fetch chat participant registry Failed to fetch
+2025-04-22 22:38:12.200 [error] [chat setup] signIn: error Canceled: Canceled

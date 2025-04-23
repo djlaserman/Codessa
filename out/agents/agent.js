@@ -6,6 +6,7 @@ const llmService_1 = require("../llm/llmService");
 const promptManager_1 = require("../agents/promptManager");
 const config_1 = require("../config");
 const toolRegistry_1 = require("../tools/toolRegistry");
+const agentMemory_1 = require("../memory/agentMemory");
 class Agent {
     constructor(config) {
         // Default LLM parameters for this agent
@@ -23,6 +24,13 @@ class Agent {
         this.tools = toolRegistry_1.toolRegistry.getToolsByIds(config.tools || []);
         this.isSupervisor = config.isSupervisor || false;
         this.chainedAgentIds = config.chainedAgentIds || [];
+        this.memory = (0, agentMemory_1.getAgentMemory)(this);
+    }
+    /**
+     * Get the agent's memory
+     */
+    getMemory() {
+        return this.memory;
     }
     /**
      * Get the default LLM parameters for this agent
@@ -75,6 +83,18 @@ class Agent {
         if (!provider.isConfigured()) {
             logger_1.logger.error(`Provider for agent '${this.name}' is not configured.`);
             return { success: false, error: 'LLM provider is not configured.' };
+        }
+        // Add user message to memory
+        if ((0, config_1.getMemoryEnabled)()) {
+            await this.memory.addMessage('user', input.prompt);
+            // Get relevant memories for this prompt
+            const relevantMemories = await this.memory.getRelevantMemories(input.prompt);
+            // If we have relevant memories, add them to the prompt
+            if (relevantMemories.length > 0) {
+                const memoryPrompt = this.memory.formatMemoriesForPrompt(relevantMemories);
+                input.prompt = memoryPrompt + input.prompt;
+                logger_1.logger.debug(`Added ${relevantMemories.length} relevant memories to prompt`);
+            }
         }
         let iterations = 0;
         const maxIterations = (0, config_1.getMaxToolIterations)();
@@ -157,6 +177,10 @@ class Agent {
             return { success: false, error: `Agent exceeded maximum tool iterations (${maxIterations}).`, toolResults: toolResultsLog };
         }
         logger_1.logger.info(`Agent '${this.name}' finished run in ${Date.now() - startTime}ms.`);
+        // Add assistant response to memory
+        if ((0, config_1.getMemoryEnabled)() && finalAnswer) {
+            await this.memory.addMessage('assistant', finalAnswer);
+        }
         return { success: true, output: finalAnswer, toolResults: toolResultsLog };
     }
 }

@@ -79,9 +79,31 @@ declare module 'openai' {
         data: OpenAIModel[];
     }
 
+    export interface EmbeddingCreateParams {
+        model: string;
+        input: string | string[];
+        encoding_format?: 'float' | 'base64';
+    }
+
+    export interface EmbeddingData {
+        embedding: number[];
+        index: number;
+        object: string;
+    }
+
+    export interface EmbeddingResponse {
+        data: EmbeddingData[];
+        model: string;
+        object: string;
+        usage: {
+            prompt_tokens: number;
+            total_tokens: number;
+        };
+    }
+
     export default class OpenAI {
         constructor(options: ClientOptions);
-        
+
         chat: {
             completions: {
                 create(params: ChatCompletionCreateParams): Promise<ChatCompletion>;
@@ -91,5 +113,9 @@ declare module 'openai' {
         models: {
             list(): Promise<ModelList>;
         };
+
+        embeddings: {
+            create(params: EmbeddingCreateParams): Promise<EmbeddingResponse>;
+        };
     }
-} 
+}

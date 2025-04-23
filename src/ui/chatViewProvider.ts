@@ -45,8 +45,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             }
         });
 
-        webviewView.webview.onDidReceiveMessage(data => {
-            switch (data.type) {
+        webviewView.webview.onDidReceiveMessage(async (data) => {
+            // Support both 'type' and 'command' from frontend messages
+            const messageType = data.type || data.command;
+            switch (messageType) {
                 case 'sendMessage': {
                     const message: ChatMessage = {
                         id: `user_${Date.now()}`,
@@ -58,22 +60,93 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
                     this._chatSession.setProcessing(true);
                     this._chatSession.save();
 
-                    // TODO: Process message with selected agent/mode
-                    // For now just echo back
-                    const response: ChatMessage = {
-                        id: `assistant_${Date.now()}`,
-                        role: 'assistant',
-                        content: `Received: ${data.message.text}`,
-                        timestamp: Date.now()
-                    };
-                    this._chatSession.addMessage(response);
-                    this._chatSession.setProcessing(false);
-                    this._chatSession.save();
+                    // Get the chat mode from the registry
+                    const { operationModeRegistry } = require('../modes/operationMode');
+                    const chatMode = operationModeRegistry.getMode('chat');
 
-                    webviewView.webview.postMessage({
-                        type: 'addMessage',
-                        message: response
-                    });
+                    if (!chatMode) {
+                        const errorResponse: ChatMessage = {
+                            id: `error_${Date.now()}`,
+                            role: 'error',
+                            content: 'Chat mode not found in registry',
+                            timestamp: Date.now()
+                        };
+                        this._chatSession.addMessage(errorResponse);
+                        this._chatSession.setProcessing(false);
+                        this._chatSession.save();
+
+                        webviewView.webview.postMessage({
+                            type: 'addMessage',
+                            message: errorResponse
+                        });
+                        return;
+                    }
+
+                    // Get default agent
+                    const { agentManager } = require('../agents/agentManager');
+                    const agents = agentManager.getAllAgents();
+                    const agent = agents.length > 0 ? agents[0] : null;
+
+                    if (!agent) {
+                        const errorResponse: ChatMessage = {
+                            id: `error_${Date.now()}`,
+                            role: 'error',
+                            content: 'No agent available. Please create an agent first.',
+                            timestamp: Date.now()
+                        };
+                        this._chatSession.addMessage(errorResponse);
+                        this._chatSession.setProcessing(false);
+                        this._chatSession.save();
+
+                        webviewView.webview.postMessage({
+                            type: 'addMessage',
+                            message: errorResponse
+                        });
+                        return;
+                    }
+
+                    try {
+                        // Process message with chat mode
+                        const response = await chatMode.processMessage(
+                            data.message.text,
+                            agent,
+                            { type: chatMode.defaultContextType }
+                        );
+
+                        const assistantMessage: ChatMessage = {
+                            id: `assistant_${Date.now()}`,
+                            role: 'assistant',
+                            content: response,
+                            timestamp: Date.now()
+                        };
+
+                        this._chatSession.addMessage(assistantMessage);
+                        this._chatSession.setProcessing(false);
+                        this._chatSession.save();
+
+                        webviewView.webview.postMessage({
+                            type: 'addMessage',
+                            message: assistantMessage
+                        });
+                    } catch (error) {
+                        const errorResponse: ChatMessage = {
+                            id: `error_${Date.now()}`,
+                            role: 'error',
+                            content: `Error: ${error instanceof Error ? error.message : String(error)}`,
+                            timestamp: Date.now()
+                        };
+
+                        this._chatSession.addMessage(errorResponse);
+                        this._chatSession.setProcessing(false);
+                        this._chatSession.save();
+
+                        webviewView.webview.postMessage({
+                            type: 'addMessage',
+                            message: errorResponse
+                        });
+                    }
+
+
                     break;
                 }
                 case 'clearChat':
@@ -87,6 +160,11 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
                 }
                 case 'log': {
                     logger.info(data.message);
+                    break;
+                }
+                case 'openSettings': {
+                    // Open extension settings with the correct extension ID
+                    vscode.commands.executeCommand('workbench.action.openSettings', 'codessa');
                     break;
                 }
             }

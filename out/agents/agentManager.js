@@ -85,6 +85,19 @@ class AgentManager {
         return this.agents.get(id);
     }
     /**
+     * Get the default agent
+     * First tries to find an agent named 'default', then returns the first agent if only one exists
+     */
+    getDefaultAgent() {
+        const agents = this.getAllAgents();
+        // If there's only one agent, use it as the default
+        if (agents.length === 1) {
+            return agents[0];
+        }
+        // Try to find an agent named 'default'
+        return agents.find(agent => agent.name.toLowerCase() === 'default');
+    }
+    /**
      * Create a new agent
      */
     async createAgent(config) {
@@ -122,11 +135,17 @@ class AgentManager {
             };
             allConfigs[index] = updatedConfig;
             // Save configs
-            await (0, config_1.saveAgents)(allConfigs);
-            // Reload agents
-            this.loadAgents(); // This will fire the onAgentsChanged event
-            logger_1.logger.info(`Updated agent: ${updatedConfig.name} (${id})`);
-            return this.agents.get(id);
+            const saved = await (0, config_1.saveAgents)(allConfigs);
+            if (saved) {
+                // Reload agents
+                this.loadAgents(); // This will fire the onAgentsChanged event
+                logger_1.logger.info(`Updated agent: ${updatedConfig.name} (${id})`);
+                return this.agents.get(id);
+            }
+            else {
+                logger_1.logger.error(`Failed to save agent: ${updatedConfig.name} (${id})`);
+                return undefined;
+            }
         }
         return undefined;
     }
@@ -163,12 +182,19 @@ class AgentManager {
                 isSupervisor: agent.isSupervisor,
                 chainedAgentIds: agent.chainedAgentIds
             }));
-            await (0, config_1.saveAgents)(configs);
-            logger_1.logger.info(`Saved ${configs.length} agents to configuration`);
+            const saved = await (0, config_1.saveAgents)(configs);
+            if (saved) {
+                logger_1.logger.info(`Saved ${configs.length} agents to configuration`);
+                return true;
+            }
+            else {
+                logger_1.logger.error(`Failed to save ${configs.length} agents to configuration`);
+                return false;
+            }
         }
         catch (error) {
             logger_1.logger.error("Failed to save agents:", error);
-            throw error;
+            return false;
         }
     }
 }

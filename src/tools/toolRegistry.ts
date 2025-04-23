@@ -1,6 +1,20 @@
 import { ITool } from './tool';
 import { fileSystemTool } from './fileTools';
 import { documentationTool } from './docsTool';
+import { directoryListTool } from './directoryListTool';
+import { codeSearchTool } from './codeSearchTool';
+import { terminalCommandTool } from './terminalCommandTool';
+import { webSearchTool } from './webSearchTool';
+import { webReadTool } from './webReadTool';
+import { MemoryTool } from './memoryTool';
+import { memoryManager } from '../memory/memoryManager';
+import { browserPreviewTool } from './browserPreviewTool';
+import { deployWebAppTool } from './deployWebAppTool';
+import { gitTool } from './gitTool';
+import { editorActionsTool } from './editorActionsTool';
+import { codeIntelligenceTool } from './codeIntelligenceTool';
+import { codeGenerationTool } from './codeGenerationTool';
+import { lintDiagnosticsTool } from './lintDiagnosticsTool';
 import { logger } from '../logger';
 
 /**
@@ -21,7 +35,20 @@ export class ToolRegistry {
         try {
             this.registerTool(fileSystemTool);
             this.registerTool(documentationTool);
-            // More tools can be registered here
+            this.registerTool(directoryListTool);
+            this.registerTool(codeSearchTool);
+            this.registerTool(terminalCommandTool);
+            this.registerTool(webSearchTool);
+            this.registerTool(webReadTool);
+            this.registerTool(new MemoryTool(memoryManager));
+            this.registerTool(browserPreviewTool);
+            this.registerTool(deployWebAppTool);
+
+            this.registerTool(gitTool);
+            this.registerTool(editorActionsTool);
+            this.registerTool(codeIntelligenceTool);
+            this.registerTool(codeGenerationTool);
+            this.registerTool(lintDiagnosticsTool);
 
             logger.info(`Initialized ${this.tools.size} tools in registry.`);
         } catch (error) {

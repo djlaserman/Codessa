@@ -76,14 +76,26 @@
 
         // Request providers and models from extension
         console.log('Requesting providers and models from extension');
-        setTimeout(() => {
-            console.log('Sending getProviders request');
-            vscode.postMessage({ command: 'getProviders' });
+        // Immediate request for providers
+        console.log('Sending getProviders request');
+        vscode.postMessage({ command: 'getProviders' });
 
+        // Request models after a short delay
+        setTimeout(() => {
+            console.log('Sending getModels request');
+            vscode.postMessage({ command: 'getModels' });
+
+            // If no response after 2 seconds, try again
             setTimeout(() => {
-                console.log('Sending getModels request');
-                vscode.postMessage({ command: 'getModels' });
-            }, 500);
+                if (availableProviders.length === 0) {
+                    console.log('No providers received, trying again...');
+                    vscode.postMessage({ command: 'getProviders' });
+                }
+                if (availableModels.length === 0) {
+                    console.log('No models received, trying again...');
+                    vscode.postMessage({ command: 'getModels' });
+                }
+            }, 2000);
         }, 500);
     }
 
@@ -619,6 +631,8 @@
 
     function updateProviderDropdown() {
         console.log('Updating provider dropdown with', availableProviders.length, 'providers');
+
+        // Clear dropdown
         providerSelector.innerHTML = '<option value="">Provider...</option>';
 
         if (availableProviders && availableProviders.length > 0) {
@@ -631,6 +645,7 @@
                 option.value = provider.id;
                 option.textContent = provider.name;
                 providerSelector.appendChild(option);
+                console.log(`Added provider option: ${provider.id} - ${provider.name}`);
             });
 
             // Set the current provider if it exists in the list
@@ -648,11 +663,18 @@
             populateModelDropdown();
         } else {
             console.warn('No providers available to populate dropdown');
+            // Request providers again
+            console.log('Re-requesting providers due to empty list');
+            setTimeout(() => {
+                vscode.postMessage({ command: 'getProviders' });
+            }, 1000);
         }
     }
 
     function populateModelDropdown() {
         console.log('Updating model dropdown with', availableModels.length, 'models');
+
+        // Clear dropdown
         modelSelector.innerHTML = '<option value="">Model...</option>';
 
         // Filter models for current provider
@@ -672,6 +694,7 @@
                 option.value = model.id;
                 option.textContent = model.name;
                 modelSelector.appendChild(option);
+                console.log(`Added model option: ${model.id} - ${model.name} (${model.provider})`);
             });
 
             // Set the current model if it exists in the filtered list
@@ -687,7 +710,10 @@
         } else {
             console.warn('No models available for provider:', currentProvider);
             // Request models again
-            vscode.postMessage({ command: 'getModels' });
+            console.log('Re-requesting models due to empty filtered list');
+            setTimeout(() => {
+                vscode.postMessage({ command: 'getModels' });
+            }, 1000);
         }
     }
 
@@ -1075,7 +1101,14 @@
     }
     function handleClear() { vscode.postMessage({ command: 'clearChat' }); }
     function handleExport() { vscode.postMessage({ command: 'exportChat' }); }
-    function handleSettings() { vscode.postMessage({ command: 'openSettings' }); }
+    function handleSettings() {
+        console.log('Settings button clicked');
+        // Send both command and type for backward compatibility
+        vscode.postMessage({
+            command: 'openSettings',
+            type: 'openSettings'
+        });
+    }
     function handleAddContext() { vscode.postMessage({ command: 'addContext' }); }
     function handleUploadImage() { vscode.postMessage({ command: 'uploadImage' }); }
     function handleRecordAudio() {
@@ -1209,9 +1242,18 @@
     // --- Message Handling from Extension ---
     function handleExtensionMessage(event) {
         const message = event.data;
+        console.log('Received message from extension:', message);
+
         // Support both message.type and message.command for backward compatibility
         const messageType = message.command || message.type;
-        console.log('Received message from extension:', messageType);
+
+        if (!messageType) {
+            console.error('Message has no type or command:', message);
+            return;
+        }
+
+        console.log('Processing message type:', messageType);
+
 
         switch (messageType) {
             case 'addMessage':
@@ -1275,10 +1317,17 @@
 
             case 'providers':
                 console.log('Received providers from extension:', message.providers);
-                if (message.providers && message.providers.length > 0) {
+                if (message.providers && Array.isArray(message.providers) && message.providers.length > 0) {
                     availableProviders = message.providers;
                     console.log(`Received ${availableProviders.length} providers:`, availableProviders.map(p => p.name).join(', '));
                     updateProviderDropdown();
+                    updateDebugInfo();
+
+                    // After updating providers, request models
+                    setTimeout(() => {
+                        console.log('Requesting models after receiving providers');
+                        vscode.postMessage({ command: 'getModels' });
+                    }, 500);
                 } else {
                     console.warn('Received empty providers list from extension');
                     // Request providers again after a delay
@@ -1302,10 +1351,11 @@
 
             case 'models':
                 console.log('Received models from extension:', message.models);
-                if (message.models && message.models.length > 0) {
+                if (message.models && Array.isArray(message.models) && message.models.length > 0) {
                     availableModels = message.models;
-                    console.log(`Received ${availableModels.length} models`);
+                    console.log(`Received ${availableModels.length} models:`, message.models.slice(0, 3).map(m => m.id).join(', ') + (message.models.length > 3 ? '...' : ''));
                     populateModelDropdown();
+                    updateDebugInfo();
                 } else {
                     console.warn('Received empty models list from extension');
                     // Request models again after a delay
@@ -1360,6 +1410,13 @@
             default:
                 console.warn("Received unknown message type from extension:", message.type);
         }
+    }
+
+    // --- Debug Functions ---
+    function updateDebugInfo() {
+        // Simplified version that doesn't depend on debug panel
+        // This function is still called from various places in the code
+        console.log(`Current state: ${availableProviders.length} providers, ${availableModels.length} models`);
     }
 
     // --- Run Initialization ---

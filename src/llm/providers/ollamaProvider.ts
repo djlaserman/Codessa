@@ -1,8 +1,7 @@
 import * as vscode from 'vscode';
-import type { AxiosInstance } from 'axios';
-
 // Use require for axios to avoid TypeScript issues
 const axios = require('axios');
+import type { AxiosInstance } from 'axios';
 import { BaseLLMProvider } from './baseLLMProvider';
 import { LLMGenerateParams, LLMGenerateResult, LLMModelInfo, ToolCallRequest } from '../llmProvider';
 import { ITool } from '../../tools/tool';
@@ -27,15 +26,14 @@ export class OllamaProvider extends BaseLLMProvider {
     private client: AxiosInstance | null = null;
     private baseUrl: string = '';
 
-    constructor() {
-        // Temporarily remove context parameter until all providers are updated
-        super(undefined as any);
+    constructor(context?: vscode.ExtensionContext) {
+        super(context);
         this.baseUrl = this.defaultEndpoint;
         this.initializeClient();
 
         // Listen for configuration changes
         vscode.workspace.onDidChangeConfiguration(e => {
-            if (e.affectsConfiguration('codessa.llm.providers.ollama')) {
+            if (e.affectsConfiguration('codessa.llm.providers')) {
                 logger.info("Ollama configuration changed, re-initializing client.");
                 this.loadConfig().then(() => this.initializeClient());
             }
@@ -48,7 +46,13 @@ export class OllamaProvider extends BaseLLMProvider {
         if (this.baseUrl) {
             try {
                 // Just store the base URL and use it directly in API calls
-                this.client = {} as AxiosInstance; // Dummy instance, we'll use axios directly
+                this.client = axios.create({
+                    baseURL: this.baseUrl,
+                    timeout: 60000, // 60 seconds timeout
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
                 logger.info(`Ollama client initialized for base URL: ${this.baseUrl}`);
                 // Optionally check if Ollama is reachable
                 this.checkConnection();
@@ -63,10 +67,10 @@ export class OllamaProvider extends BaseLLMProvider {
     }
 
     async checkConnection(): Promise<boolean> {
-        if (!this.baseUrl) return false;
+        if (!this.baseUrl || !this.client) return false;
 
         try {
-            await axios.get(`${this.baseUrl}/api/version`); // Check if the Ollama API is responding
+            await this.client.get('/api/version'); // Check if the Ollama API is responding
             logger.info(`Ollama connection successful at ${this.baseUrl}`);
             return true;
         } catch (error) {
@@ -92,7 +96,13 @@ export class OllamaProvider extends BaseLLMProvider {
 
         try {
             // First check if we can connect to the Ollama server
-            await axios.get(`${this.baseUrl}/api/version`);
+            if (!this.client) {
+                return {
+                    success: false,
+                    message: 'Ollama client not initialized'
+                };
+            }
+            await this.client.get('/api/version');
 
             // Then check if the specified model is available
             const models = await this.listModels();
@@ -244,7 +254,11 @@ Think step-by-step. Analyze the request, decide if a tool is needed, call the to
         try {
             logger.debug(`Sending request to Ollama model ${params.modelId} at ${this.baseUrl}${endpoint}`);
 
-            const response = await axios.post(`${this.baseUrl}${endpoint}`, requestData, {
+            if (!this.client) {
+                return { content: '', error: 'Ollama client not initialized' };
+            }
+
+            const response = await this.client.post(endpoint, requestData, {
                 cancelToken: cancelSource?.token,
             });
 
@@ -326,7 +340,10 @@ Think step-by-step. Analyze the request, decide if a tool is needed, call the to
 
         try {
             logger.debug(`Fetching Ollama models list from ${this.baseUrl}${endpoint}`);
-            const response = await axios.get(`${this.baseUrl}${endpoint}`);
+            if (!this.client) {
+                return [];
+            }
+            const response = await this.client.get(endpoint);
 
             // Ollama response format: { models: [{ name: "model:tag", ... }, ...] }
             const models = response.data?.models || [];
@@ -363,9 +380,26 @@ Think step-by-step. Analyze the request, decide if a tool is needed, call the to
      * Update the provider configuration
      */
     public async updateConfig(config: any): Promise<void> {
-        await super.updateConfig(config);
-        this.baseUrl = this.config.apiEndpoint || this.defaultEndpoint;
-        this.initializeClient();
+        try {
+            await super.updateConfig(config);
+
+            // Update baseUrl from config or fall back to default
+            this.baseUrl = this.config.apiEndpoint || this.defaultEndpoint;
+
+            // Initialize the client with new configuration
+            this.initializeClient();
+
+            // Verify the connection works
+            const connected = await this.checkConnection();
+            if (!connected) {
+                throw new Error(`Failed to connect to Ollama at ${this.baseUrl}`);
+            }
+
+            logger.info(`Successfully updated Ollama configuration with endpoint ${this.baseUrl}`);
+        } catch (error) {
+            logger.error('Failed to update Ollama configuration:', error);
+            throw error; // Re-throw to let calling code handle the error
+        }
     }
 
     /**
@@ -390,3 +424,5 @@ Think step-by-step. Analyze the request, decide if a tool is needed, call the to
         ];
     }
 }
+
+

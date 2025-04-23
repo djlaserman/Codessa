@@ -1,38 +1,51 @@
 # Codessa Setup Guide
 
+This guide will help you install, configure, and launch Codessa for development or use in Visual Studio Code.
+
+---
+
 ## Installation
 
-1. Clone this repository
-2. Install dependencies:
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/djlaserman/codessa.git
+   cd codessa
+   ```
 
-```bash
-npm install
-```
+2. **Install dependencies:**
+   ```bash
+   npm install
+   ```
 
-3. If you encounter TypeScript errors, install the following packages:
+3. **(Optional) If you encounter TypeScript or dependency errors:**
+   ```bash
+   npm install @types/diff --save-dev
+   npm install openai axios --save
+   # Add any other provider SDKs as needed
+   ```
 
-```bash
-npm install @types/diff --save-dev
-npm install openai axios --save
-```
+4. **Compile the extension:**
+   ```bash
+   npm run compile
+   ```
 
-4. Compile the extension:
+5. **Launch in VS Code:**
+   - Open the folder in VS Code
+   - Press `F5` to start the extension in debug mode
 
-```bash
-npm run compile
-```
-
-5. Press F5 in VS Code to launch the extension in debug mode
+---
 
 ## Configuration
 
-The extension requires configuration for the different LLM providers:
+Codessa supports multiple LLM providers. Configure your providers in VS Code settings:
 
-1. For OpenAI:
-   - Set your API key in `Settings > Codessa > Providers > OpenAI > API Key`
+### 1. OpenAI
+- Set your API key in `Settings > Codessa > Providers > OpenAI > API Key`
 
-2. For Ollama:
-   - Install Ollama locally: https://ollama.com/
+### 2. Ollama (Local Models)
+- Download and install from [ollama.com](https://ollama.com/)
+- Run `ollama serve` to start the server
+- Default URL: `http://localhost:11434`
    - Run `ollama serve` to start the server
    - The default URL is http://localhost:11434
 
